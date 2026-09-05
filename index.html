@@ -25,7 +25,6 @@
     <div class="burn-hero__amount"><span class="currency">&#8377;</span><span id="totalMonthly">0</span></div>
     <div class="burn-hero__sub" id="burnSub"></div>
   </div>
-  <div class="kpi-row" id="kpiRow"></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="switchTab('dailylog',this)">Daily Log</button>
@@ -34,6 +33,14 @@
     <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
   </div>
   <div id="view-dashboard">
+    <div class="quick-log-card">
+      <div class="quick-log-row">
+        <input type="number" id="quickAmount" placeholder="₹ Amount" class="quick-log-amount" onkeydown="if(event.key==='Enter')quickLog()">
+        <select id="quickCat" class="quick-log-cat"><option value="Food">Food</option><option value="Transport">Transport</option><option value="Shopping">Shopping</option><option value="Entertainment">Entertainment</option><option value="Bills">Bills</option><option value="Health">Health</option><option value="Other">Other</option></select>
+        <button class="quick-log-btn" onclick="quickLog()">Log</button>
+      </div>
+      <input type="text" id="quickNote" placeholder="Note (optional) — e.g. chai, petrol, groceries" class="quick-log-note" onkeydown="if(event.key==='Enter')quickLog()">
+    </div>
     <div class="section">
       <div class="section__head">
         <div class="section__title"><span class="dot-ind"></span>Upcoming Renewals</div>
@@ -41,6 +48,7 @@
       </div>
       <div class="renewal-list" id="renewalList"></div>
     </div>
+    <div class="kpi-row kpi-row--mini" id="kpiRow"></div>
     <div class="section">
       <div class="section__head">
         <div class="section__title">All Expenses</div>
@@ -67,17 +75,6 @@
     </div>
   </div>
   <div id="view-dailylog" style="display:none">
-    <div class="section">
-      <div class="section__head"><div class="section__title">Quick Log</div></div>
-      <div class="quick-log-card">
-        <div class="quick-log-row">
-          <input type="number" id="quickAmount" placeholder="₹ Amount" class="quick-log-amount" onkeydown="if(event.key==='Enter')quickLog()">
-          <select id="quickCat" class="quick-log-cat"><option value="Food">Food</option><option value="Transport">Transport</option><option value="Shopping">Shopping</option><option value="Entertainment">Entertainment</option><option value="Bills">Bills</option><option value="Health">Health</option><option value="Other">Other</option></select>
-          <button class="quick-log-btn" onclick="quickLog()">Log</button>
-        </div>
-        <input type="text" id="quickNote" placeholder="Note (optional) — e.g. chai, petrol, groceries" class="quick-log-note" onkeydown="if(event.key==='Enter')quickLog()">
-      </div>
-    </div>
     <div class="daily-stats-row">
       <div class="daily-stat-card"><div class="daily-stat-card__value" id="dailyTotal">₹0</div><div class="daily-stat-card__label">Today</div></div>
       <div class="daily-stat-card"><div class="daily-stat-card__value" id="weekTotal">₹0</div><div class="daily-stat-card__label">This Week</div></div>

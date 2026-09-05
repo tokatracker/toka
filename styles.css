@@ -109,3 +109,10 @@
 .rating-prompt__actions{display:flex;gap:10px}
 .rating-prompt__actions .btn-primary{flex:0 0 auto;padding:8px 24px;font-size:13px}
 .rating-prompt__actions .btn-secondary{padding:8px 18px;font-size:13px}
+
+/* ===== DASHBOARD HIERARCHY TWEAKS ===== */
+.kpi-row--mini{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:20px}
+.kpi-row--mini .kpi-card{padding:10px 12px}
+.kpi-row--mini .kpi-card__value{font-size:16px}
+.kpi-row--mini .kpi-card__label{font-size:8px;margin-top:4px}
+#view-dashboard .quick-log-card{margin-bottom:20px}
