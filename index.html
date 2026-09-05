@@ -26,6 +26,7 @@
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="switchTab('payments',this)">Payment History</button>
+    <button class="nav-tab" onclick="switchTab('insights',this)">Insights</button>
     <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
   </div>
   <div id="view-dashboard">
@@ -57,6 +58,24 @@
     </div>
     <div class="section"><div class="summary-card" id="paySummary"></div></div>
   </div>
+  <div id="view-insights" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Spending by Category</div></div>
+      <div class="chart-card"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Monthly Spend Trend</div></div>
+      <div class="chart-card"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Expenses by Type</div></div>
+      <div class="chart-card"><canvas id="typeChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Payment Method Breakdown</div></div>
+      <div class="chart-card"><canvas id="methodChart"></canvas></div>
+    </div>
+  </div>
   <div id="view-settings" style="display:none">
     <div class="section">
       <div class="section__head"><div class="section__title">Notifications</div></div>
@@ -64,6 +83,13 @@
         <div class="settings-row"><div><div class="settings-row__label">Renewal Reminders</div><div class="settings-row__desc">Get notified before subscriptions renew</div></div><label class="toggle"><input type="checkbox" id="setRenewal" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
         <div class="settings-row"><div><div class="settings-row__label">Reminder Days</div><div class="settings-row__desc">How many days before due date</div></div><select class="settings-select" id="setDays" onchange="saveSettings()"><option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
         <div class="settings-row"><div><div class="settings-row__label">Push Notifications</div><div class="settings-row__desc">Browser notifications for due dates</div></div><label class="toggle"><input type="checkbox" id="setPush" onchange="togglePush()"><span class="toggle-slider"></span></label></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Export Data</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Export as CSV</div><div class="settings-row__desc">Download expenses & payments for Excel / Sheets</div></div><button class="btn-mini btn-mini--manage" onclick="exportCSV()">Download CSV</button></div>
+        <div class="settings-row"><div><div class="settings-row__label">Export as JSON</div><div class="settings-row__desc">Full backup of all your Toka data</div></div><button class="btn-mini btn-mini--manage" onclick="exportJSON()">Download JSON</button></div>
       </div>
     </div>
     <div class="section">
@@ -99,6 +125,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
