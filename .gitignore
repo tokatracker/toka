@@ -1,0 +1,5 @@
+node_modules/
+toka.db
+toka.db-shm
+toka.db-wal
+.env
