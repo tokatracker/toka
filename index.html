@@ -15,7 +15,10 @@
 <div class="app">
   <header class="header">
     <div class="logo"><span class="logo__mark">toka</span><span class="logo__tag">every kharcha</span></div>
-    <div class="header__right"><button class="btn-add" onclick="openModal()">+ Add Expense</button></div>
+    <div class="header__right">
+      <div class="streak-badge" id="streakBadge"></div>
+      <button class="btn-add" onclick="openModal()">+ Add Expense</button>
+    </div>
   </header>
   <div class="burn-hero">
     <div class="burn-hero__label">Total Monthly Burn</div>
@@ -25,7 +28,8 @@
   <div class="kpi-row" id="kpiRow"></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
-    <button class="nav-tab" onclick="switchTab('payments',this)">Payment History</button>
+    <button class="nav-tab" onclick="switchTab('dailylog',this)">Daily Log</button>
+    <button class="nav-tab" onclick="switchTab('payments',this)">Payments</button>
     <button class="nav-tab" onclick="switchTab('insights',this)">Insights</button>
     <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
   </div>
@@ -62,6 +66,31 @@
       <div class="cat-grid" id="catGrid"></div>
     </div>
   </div>
+  <div id="view-dailylog" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Quick Log</div></div>
+      <div class="quick-log-card">
+        <div class="quick-log-row">
+          <input type="number" id="quickAmount" placeholder="₹ Amount" class="quick-log-amount" onkeydown="if(event.key==='Enter')quickLog()">
+          <select id="quickCat" class="quick-log-cat"><option value="Food">Food</option><option value="Transport">Transport</option><option value="Shopping">Shopping</option><option value="Entertainment">Entertainment</option><option value="Bills">Bills</option><option value="Health">Health</option><option value="Other">Other</option></select>
+          <button class="quick-log-btn" onclick="quickLog()">Log</button>
+        </div>
+        <input type="text" id="quickNote" placeholder="Note (optional) — e.g. chai, petrol, groceries" class="quick-log-note" onkeydown="if(event.key==='Enter')quickLog()">
+      </div>
+    </div>
+    <div class="daily-stats-row">
+      <div class="daily-stat-card"><div class="daily-stat-card__value" id="dailyTotal">₹0</div><div class="daily-stat-card__label">Today</div></div>
+      <div class="daily-stat-card"><div class="daily-stat-card__value" id="weekTotal">₹0</div><div class="daily-stat-card__label">This Week</div></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Today's Spending</div></div>
+      <div class="daily-log-list" id="dailyLogList"></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">History</div></div>
+      <div class="daily-hist-list" id="dailyHistoryList"></div>
+    </div>
+  </div>
   <div id="view-payments" style="display:none">
     <div class="section">
       <div class="section__head"><div class="section__title">Payment History</div></div>
@@ -70,6 +99,28 @@
     <div class="section"><div class="summary-card" id="paySummary"></div></div>
   </div>
   <div id="view-insights" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Smart Insights</div></div>
+      <div class="insights-grid" id="insightsCards"></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Subscription Review</div></div>
+      <div class="sub-review-list" id="subReviewList"></div>
+    </div>
+    <div id="ratingPrompt" class="rating-prompt-card" style="display:none">
+      <div class="rating-prompt__title">How much did you use <span id="ratingName">this</span>?</div>
+      <div class="rating-prompt__stars">
+        <button class="star-btn" data-star="1" onclick="rateSub(1)">⭐</button>
+        <button class="star-btn" data-star="2" onclick="rateSub(2)">⭐</button>
+        <button class="star-btn" data-star="3" onclick="rateSub(3)">⭐</button>
+        <button class="star-btn" data-star="4" onclick="rateSub(4)">⭐</button>
+        <button class="star-btn" data-star="5" onclick="rateSub(5)">⭐</button>
+      </div>
+      <div class="rating-prompt__actions">
+        <button class="btn-secondary" onclick="skipRating()">Skip</button>
+        <button class="btn-primary" onclick="submitRating()">Rate</button>
+      </div>
+    </div>
     <div class="section">
       <div class="section__head"><div class="section__title">Spending by Category</div></div>
       <div class="chart-card"><canvas id="catChart"></canvas></div>
@@ -99,14 +150,14 @@
     <div class="section">
       <div class="section__head"><div class="section__title">Export Data</div></div>
       <div class="summary-card">
-        <div class="settings-row"><div><div class="settings-row__label">Export as CSV</div><div class="settings-row__desc">Download expenses & payments for Excel / Sheets</div></div><button class="btn-mini btn-mini--manage" onclick="exportCSV()">Download CSV</button></div>
+        <div class="settings-row"><div><div class="settings-row__label">Export as CSV</div><div class="settings-row__desc">Download expenses, payments & daily logs</div></div><button class="btn-mini btn-mini--manage" onclick="exportCSV()">Download CSV</button></div>
         <div class="settings-row"><div><div class="settings-row__label">Export as JSON</div><div class="settings-row__desc">Full backup of all your Toka data</div></div><button class="btn-mini btn-mini--manage" onclick="exportJSON()">Download JSON</button></div>
       </div>
     </div>
     <div class="section">
       <div class="section__head"><div class="section__title">Data</div></div>
       <div class="summary-card">
-        <div class="settings-row"><div><div class="settings-row__label">Clear All Data</div><div class="settings-row__desc">Delete all expenses and payment history</div></div><button class="btn-mini btn-mini--cancel" onclick="clearAllData()">Clear All</button></div>
+        <div class="settings-row"><div><div class="settings-row__label">Clear All Data</div><div class="settings-row__desc">Delete all expenses, payments, logs & ratings</div></div><button class="btn-mini btn-mini--cancel" onclick="clearAllData()">Clear All</button></div>
       </div>
     </div>
   </div>
