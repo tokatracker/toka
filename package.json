@@ -1,0 +1,1 @@
+{"main": "server.js", "name": "toka", "scripts": {"dev": "node --watch server.js", "start": "node server.js"}, "version": "1.0.0", "description": "Toka — Personal expense & subscription tracker with backend", "dependencies": {"cors": "^2.8.5", "express": "^4.19.2", "better-sqlite3": "^11.0.0"}}

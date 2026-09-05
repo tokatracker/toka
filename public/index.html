@@ -5,6 +5,135 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Toka — Know every kharcha before it hits</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--font-body:'Plus Jakarta Sans',system-ui,sans-serif;--font-mono:'JetBrains Mono','SF Mono',Consolas,monospace;--bg:#faf8f5;--surface:#fff;--surface-recessed:#f3f0eb;--border:rgba(0,0,0,.07);--border-bright:rgba(0,0,0,.14);--text:#1a1512;--text-dim:#78706c;--accent:#c2410c;--accent-dim:rgba(194,65,12,.08);--accent-light:rgba(194,65,12,.04);--green:#059669;--green-dim:rgba(5,150,105,.1);--red:#dc2626;--red-dim:rgba(220,38,38,.08);--amber:#d97706;--amber-dim:rgba(217,119,6,.1);--blue:#0369a1;--blue-dim:rgba(3,105,161,.08);--purple:#7c3aed;--purple-dim:rgba(124,58,237,.08);--shadow-sm:0 1px 2px rgba(0,0,0,.04);--shadow-md:0 2px 8px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 8px 30px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04)}
-@media(prefers-color-scheme:dark){:root{--bg:#14110e;--surface:#1f1a16;--surface-recessed:#16110e;--border:rgba(255,255,255,.06);--border-bright:rgba(255,255,255,.12);--text:#f5f0ec;--text-dim:#9c938b;--accent:#f97316;--accent-dim:rgba(249,115,22,.12);--accent-light:rgba(249,115,22,.05);--green:#34d399;--green-dim:rgba(52,211,153,.12);--red:#f87171;--red-dim:rgba(248,113,113,.1);--amber:#fbbf24;--amber-dim:rgba(251,191,36,.12);--blue:#38bdf8;--blue-dim:rgba(56,189,248,.1);--purple:#a78bfa;--purple-dim:rgba(167,139,250,.12)}}
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo"><span class="logo__mark">toka</span><span class="logo__tag">every kharcha</span></div>
+    <div class="header__right"><button class="btn-add" onclick="openModal()">+ Add Expense</button></div>
+  </header>
+  <div class="burn-hero">
+    <div class="burn-hero__label">Total Monthly Burn</div>
+    <div class="burn-hero__amount"><span class="currency">&#8377;</span><span id="totalMonthly">0</span></div>
+    <div class="burn-hero__sub" id="burnSub"></div>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('payments',this)">Payment History</button>
+    <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
+  </div>
+  <div id="view-dashboard">
+    <div class="section">
+      <div class="section__head">
+        <div class="section__title"><span class="dot-ind"></span>Upcoming Renewals</div>
+        <div class="section__meta" id="renewalMeta"></div>
+      </div>
+      <div class="renewal-list" id="renewalList"></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">All Expenses</div></div>
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Cycle</th><th>Next Due</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Category Breakdown</div></div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+  </div>
+  <div id="view-payments" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Payment History</div></div>
+      <div class="pay-history-list" id="payHistoryList"></div>
+    </div>
+    <div class="section"><div class="summary-card" id="paySummary"></div></div>
+  </div>
+  <div id="view-settings" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Notifications</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Renewal Reminders</div><div class="settings-row__desc">Get notified before subscriptions renew</div></div><label class="toggle"><input type="checkbox" id="setRenewal" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+        <div class="settings-row"><div><div class="settings-row__label">Reminder Days</div><div class="settings-row__desc">How many days before due date</div></div><select class="settings-select" id="setDays" onchange="saveSettings()"><option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+        <div class="settings-row"><div><div class="settings-row__label">Push Notifications</div><div class="settings-row__desc">Browser notifications for due dates</div></div><label class="toggle"><input type="checkbox" id="setPush" onchange="togglePush()"><span class="toggle-slider"></span></label></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Data</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Clear All Data</div><div class="settings-row__desc">Delete all expenses and payment history</div></div><button class="btn-mini btn-mini--cancel" onclick="clearAllData()">Clear All</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal__title">Add Expense</div>
+    <div class="modal__sub">Track a recurring expense or subscription</div>
+    <div class="field"><label>Name</label><input type="text" id="fName" placeholder="e.g. Netflix, Gym, Rent" oninput="checkMerchant()"></div>
+    <div class="merchant-hint" id="merchantHint" style="display:none"></div>
+    <div class="field-row"><div class="field"><label>Amount (&#8377;)</label><input type="number" id="fAmount" placeholder="649"></div><div class="field"><label>Type</label><select id="fType"><option value="sub">Subscription</option><option value="bill">Bill</option><option value="pers">Personal</option></select></div></div>
+    <div class="field-row"><div class="field"><label>Category</label><input type="text" id="fCategory" placeholder="OTT, Utility, Fitness..."></div><div class="field"><label>Billing Cycle</label><select id="fCycle"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="onetime">One-time</option></select></div></div>
+    <div class="field"><label>Next Due Date</label><input type="date" id="fNextDue"></div>
+    <div class="field"><label>Manage / Cancel Link (optional)</label><input type="url" id="fLink" placeholder="https://..."></div>
+    <div class="field"><label>UPI ID (optional)</label><input type="text" id="fUpiId" placeholder="merchant@upi"></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="submitExpense()">Add Expense</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="payOverlay">
+  <div class="modal">
+    <div class="modal__title">Pay via UPI</div>
+    <div class="pay-to">Paying <strong id="payName">-</strong></div>
+    <div class="pay-amount-display"><div class="amt">&#8377;<span id="payAmount">0</span></div><div class="lbl">due now</div></div>
+    <div class="pay-apps" id="payApps"></div>
+    <div class="pay-copy-link"><label>UPI Deep Link</label><div class="copy-row"><input type="text" id="upiLink" readonly><button onclick="copyUpiLink()">Copy</button></div></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closePayModal()">Close</button><button class="btn-primary" onclick="markPaid()">Mark as Paid</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const MERCHANTS={netflix:{link:'https://www.netflix.com/cancelplan',cat:'OTT'},spotify:{link:'https://www.spotify.com/account/subscription/',cat:'OTT'},hotstar:{link:'https://www.hotstar.com/in/subscribe/myaccount',cat:'OTT'},prime:{link:'https://www.amazon.in/mc/yourmembershipsandsubscriptions',cat:'OTT'},youtube:{link:'https://www.youtube.com/paid_memberships',cat:'OTT'},jio:{link:'https://www.jio.com/selfcare/dashboard/',cat:'Telecom'},airtel:{link:'https://www.airtel.in/myaccount/',cat:'Telecom'},microsoft:{link:'https://account.microsoft.com/services',cat:'Software'},adobe:{link:'https://account.adobe.com/plans',cat:'Software'},canva:{link:'https://www.canva.com/settings/billing',cat:'Software'}};
+const PAY_APPS=[{name:'PhonePe',icon:'P',color:'#5f259f',scheme:'phonepe'},{name:'GPay',icon:'G',color:'#1a73e8',scheme:'tez'},{name:'Paytm',icon:'P',color:'#00baf2',scheme:'paytmmp'},{name:'BHIM',icon:'B',color:'#f47216',scheme:'bhim'},{name:'Amazon Pay',icon:'A',color:'#ff9900',scheme:'amazonpay'},{name:'WhatsApp',icon:'W',color:'#25d366',scheme:'whatsapp'}];
+let expenses=[],payments={},settings={},currentPayExpense=null;
+async function api(u,o={}){const r=await fetch(u,{headers:{'Content-Type':'application/json'},...o});if(!r.ok)throw new Error(r.status);return r.json();}
+function fmtR(n){return new Intl.NumberFormat('en-IN').format(Math.round(n));}
+function daysUntil(d){const x=new Date(d);x.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);return Math.round((x-t)/86400000);}
+function fmtDue(d){const days=daysUntil(d);if(days<0)return'Overdue by '+Math.abs(days)+'d';if(days===0)return'Due today';if(days===1)return'Tomorrow';return'In '+days+' days';}
+function typeBadge(t){return'<span class="type-badge type-badge--'+t+'">'+(t==='sub'?'Sub':t==='bill'?'Bill':'Pers')+'</span>';}
+function statusBadge(s){return'<span class="status-badge status-badge--'+s+'">'+(s==='active'?'Active':s==='snoozed'?'Snoozed':'Cancelled')+'</span>';}
+function catColor(c){const m={'OTT':'accent','Telecom':'blue','Utility':'blue','Fitness':'green','Food':'amber','Software':'accent','Rent':'red','Education':'green'};return m[c]||'accent';}
+function catIcon(c){return c?c.charAt(0).toUpperCase():'?';}
+async function loadData(){try{[expenses,payments,settings]=await Promise.all([api('/api/expenses'),api('/api/payments'),api('/api/settings')]);renderDashboard();renderPayments();renderSettings();}catch(e){console.error(e);showToast('Failed to load');}}
+function renderDashboard(){const a=expenses.filter(e=>e.status!=='cancelled');let tm=0,sm=0,bm=0,pm=0;a.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;tm+=m;if(e.type==='sub')sm+=m;else if(e.type==='bill')bm+=m;else pm+=m;});document.getElementById('totalMonthly').textContent=fmtR(tm);document.getElementById('burnSub').innerHTML='<span><span class="dot dot--sub"></span>Subs <strong>Rs'+fmtR(sm)+'</strong></span><span><span class="dot dot--bill"></span>Bills <strong>Rs'+fmtR(bm)+'</strong></span><span><span class="dot dot--pers"></span>Pers <strong>Rs'+fmtR(pm)+'</strong></span>';const uc=a.filter(e=>{const d=daysUntil(e.nextDue);return d>=0&&d<=7;}).length;const sc=expenses.filter(e=>e.status==='snoozed').length;document.getElementById('kpiRow').innerHTML='<div class="kpi-card" style="--i:0"><div class="kpi-card__value">Rs'+fmtR(tm*12)+'</div><div class="kpi-card__label">Yearly</div></div><div class="kpi-card" style="--i:1"><div class="kpi-card__value">'+uc+'</div><div class="kpi-card__label">This Week</div></div><div class="kpi-card" style="--i:2"><div class="kpi-card__value" style="color:var(--amber)">'+sc+'</div><div class="kpi-card__label">Snoozed</div></div><div class="kpi-card" style="--i:3"><div class="kpi-card__value">'+expenses.length+'</div><div class="kpi-card__label">Total</div></div>';renderRenewals();renderTable();renderCategories();}
+function renderRenewals(){const l=document.getElementById('renewalList');const u=expenses.filter(e=>e.status!=='cancelled').sort((a,b)=>daysUntil(a.nextDue)-daysUntil(b.nextDue)).slice(0,5);if(u.length===0){l.innerHTML='<div class="empty"><div class="empty__text">No renewals yet</div></div>';return;}l.innerHTML=u.map((e,i)=>{const d=daysUntil(e.nextDue);let cls='';if(d<=1)cls='urgent';else if(d<=3)cls='soon';const cv=catColor(e.category);return'<div class="renewal-item" style="--i:'+i+'"><div class="renewal-item__icon" style="background:var(--'+cv+'-dim);color:var(--'+cv+')">'+catIcon(e.category)+'</div><div class="renewal-item__info"><div class="renewal-item__name">'+(e.link?'<a href="'+e.link+'" target="_blank">'+e.name+'</a>':e.name)+'</div><div class="renewal-item__due '+cls+'">'+fmtDue(e.nextDue)+' - '+e.category+'</div></div><div class="renewal-item__amount">Rs'+fmtR(e.amount)+'</div><div class="renewal-item__actions">'+(e.link?'<a class="btn-mini btn-mini--manage" href="'+e.link+'" target="_blank">Manage</a>':'')+'<button class="btn-mini btn-mini--pay" onclick="openPayModal(\''+e.id+'\')">Pay</button><button class="btn-mini btn-mini--snooze" onclick="snoozeExpense(\''+e.id+'\')">Snooze</button><button class="btn-mini btn-mini--cancel" onclick="cancelExpense(\''+e.id+'\')">Cancel</button></div></div>';}).join('');}
+function renderTable(){const t=document.getElementById('expenseTableBody');if(expenses.length===0){t.innerHTML='<tr><td colspan="8"><div class="empty">No expenses yet</div></td></tr>';return;}t.innerHTML=expenses.map(e=>'<tr><td class="row-name">'+(e.link?'<a href="'+e.link+'" target="_blank">'+e.name+'</a>':e.name)+'</td><td>'+typeBadge(e.type)+'</td><td><div class="row-cat">'+e.category+'</div></td><td>'+e.cycle+'</td><td>'+fmtDue(e.nextDue)+'</td><td class="num">Rs'+fmtR(e.amount)+'</td><td>'+statusBadge(e.status)+'</td><td><button class="del-btn" onclick="deleteExpense(\''+e.id+'\')">x</button></td></tr>').join('');}
+function renderCategories(){const g=document.getElementById('catGrid');const a=expenses.filter(e=>e.status!=='cancelled');const c={};a.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;c[e.category]=(c[e.category]||0)+m;});const s=Object.entries(c).sort((a,b)=>b[1]-a[1]);if(s.length===0){g.innerHTML='<div class="empty">No categories</div>';return;}const mx=s[0][1];g.innerHTML=s.map(([cat,amt])=>{const cv=catColor(cat);return'<div class="cat-card"><div class="cat-card__name">'+cat+'</div><div class="cat-card__amount">Rs'+fmtR(amt)+'<span class="per">/mo</span></div><div class="cat-card__bar"><div class="cat-card__bar-fill" style="width:'+Math.round(amt/mx*100)+'%;background:var(--'+cv+')"></div></div></div>';}).join('');}
+function renderPayments(){const l=document.getElementById('payHistoryList');if(!payments.length){l.innerHTML='<div class="empty"><div class="empty__text">No payments yet</div></div>';}else{l.innerHTML=payments.map((p,i)=>'<div class="pay-history-item" style="--i:'+i+'"><div class="pay-history-item__icon" style="background:var(--'+catColor(p.category)+'-dim);color:var(--'+catColor(p.category)+')">'+catIcon(p.category)+'</div><div class="pay-history-item__info"><div class="pay-history-item__name">'+p.name+'</div><div class="pay-history-item__meta">'+(p.category||'-')+' - '+new Date(p.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="pay-method pay-method--'+(p.method==='upi'?'upi':'manual')+'">'+p.method+'</span><div class="pay-history-item__amount">Rs'+fmtR(p.amount)+'</div></div>').join('');}const total=payments.reduce((s,p)=>s+p.amount,0);const upiT=payments.filter(p=>p.method==='upi').reduce((s,p)=>s+p.amount,0);document.getElementById('paySummary').innerHTML='<div class="summary-row"><span class="summary-row__label">UPI</span><span class="summary-row__value">Rs'+fmtR(upiT)+'</span></div><div class="summary-row"><span class="summary-row__label">Manual</span><span class="summary-row__value">Rs'+fmtR(total-upiT)+'</span></div><div class="summary-row summary-row--total"><span class="summary-row__label">Total Paid</span><span class="summary-row__value">Rs'+fmtR(total)+'</span></div>';}
+function renderSettings(){if(settings.renewal==='true')document.getElementById('setRenewal').checked=true;if(settings.days)document.getElementById('setDays').value=settings.days;if(settings.push==='true')document.getElementById('setPush').checked=true;}
+function switchTab(t,b){document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['dashboard','payments','settings'].forEach(v=>{document.getElementById('view-'+v).style.display=v===t?'block':'none';});}
+function openModal(){document.getElementById('modalOverlay').classList.add('open');const d=new Date();d.setDate(d.getDate()+30);document.getElementById('fNextDue').value=d.toISOString().split('T')[0];}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');['fName','fAmount','fCategory','fLink','fUpiId'].forEach(i=>document.getElementById(i).value='');document.getElementById('merchantHint').style.display='none';}
+function checkMerchant(){const n=document.getElementById('fName').value.toLowerCase().trim();const h=document.getElementById('merchantHint');const f=Object.keys(MERCHANTS).find(m=>n.includes(m));if(f&&n.length>2){const m=MERCHANTS[f];if(!document.getElementById('fCategory').value)document.getElementById('fCategory').value=m.cat;if(!document.getElementById('fLink').value&&m.link)document.getElementById('fLink').value=m.link;h.innerHTML='Detected: <strong>'+f+'</strong> - auto-filled';h.style.display='block';}else h.style.display='none';}
+async function submitExpense(){const d={name:document.getElementById('fName').value.trim(),amount:parseInt(document.getElementById('fAmount').value),category:document.getElementById('fCategory').value.trim()||'Other',type:document.getElementById('fType').value,cycle:document.getElementById('fCycle').value,nextDue:document.getElementById('fNextDue').value,link:document.getElementById('fLink').value.trim(),upiId:document.getElementById('fUpiId').value.trim()};if(!d.name||!d.amount||!d.nextDue){showToast('Fill name, amount, due date');return;}try{await api('/api/expenses',{method:'POST',body:JSON.stringify(d)});closeModal();await loadData();showToast('Added');}catch(e){showToast('Failed');}}
+function openPayModal(id){const e=expenses.find(x=>x.id===id);if(!e)return;currentPayExpense=e;document.getElementById('payName').textContent=e.name;document.getElementById('payAmount').textContent=fmtR(e.amount);const uid=e.upiId||'';const ul=uid?'upi://pay?pa='+uid+'&pn='+encodeURIComponent(e.name)+'&am='+e.amount+'&cu=INR':'';document.getElementById('upiLink').value=ul;document.getElementById('payApps').innerHTML=PAY_APPS.map(a=>'<a class="pay-app" href="'+(uid?a.scheme+'://pay?pa='+uid+'&pn='+encodeURIComponent(e.name)+'&am='+e.amount+'&cu=INR':a.scheme+'://')+'"><div class="pay-app__icon" style="background:'+a.color+'">'+a.icon+'</div><div class="pay-app__name">'+a.name+'</div></a>').join('');document.getElementById('payOverlay').classList.add('open');}
+function closePayModal(){document.getElementById('payOverlay').classList.remove('open');currentPayExpense=null;}
+function copyUpiLink(){const i=document.getElementById('upiLink');i.select();document.execCommand('copy');showToast('Copied');}
+async function markPaid(){if(!currentPayExpense)return;const e=currentPayExpense;try{await api('/api/payments',{method:'POST',body:JSON.stringify({expenseId:e.id,name:e.name,amount:e.amount,category:e.category,method:'upi'})});const n=new Date(e.nextDue);n.setMonth(n.getMonth()+1);await api('/api/expenses/'+e.id,{method:'PATCH',body:JSON.stringify({nextDue:n.toISOString().split('T')[0]})});closePayModal();await loadData();showToast('Paid');}catch(e){showToast('Failed');}}
+async function snoozeExpense(id){const n=new Date();n.setDate(n.getDate()+30);try{await api('/api/expenses/'+id,{method:'PATCH',body:JSON.stringify({status:'snoozed',nextDue:n.toISOString().split('T')[0]})});await loadData();showToast('Snoozed');}catch(e){showToast('Failed');}}
+async function cancelExpense(id){try{await api('/api/expenses/'+id,{method:'PATCH',body:JSON.stringify({status:'cancelled'})});await loadData();showToast('Cancelled');}catch(e){showToast('Failed');}}
+async function renewExpense(id){const n=new Date();n.setDate(n.getDate()+30);try{await api('/api/expenses/'+id,{method:'PATCH',body:JSON.stringify({status:'active',nextDue:n.toISOString().split('T')[0]})});await loadData();showToast('Renewed');}catch(e){showToast('Failed');}}
+async function deleteExpense(id){try{await api('/api/expenses/'+id,{method:'DELETE'});await loadData();showToast('Deleted');}catch(e){showToast('Failed');}}
+async function saveSettings(){const d={renewal:document.getElementById('setRenewal').checked?'true':'false',days:document.getElementById('setDays').value,push:document.getElementById('setPush').checked?'true':'false'};try{await api('/api/settings',{method:'PUT',body:JSON.stringify(d)});showToast('Saved');}catch(e){showToast('Failed');}}
+async function togglePush(){if(document.getElementById('setPush').checked){if('Notification'in window){const p=await Notification.requestPermission();if(p!=='granted'){document.getElementById('setPush').checked=false;showToast('Denied');return;}}}await saveSettings();}
+async function clearAllData(){if(!confirm('Delete ALL data?'))return;try{const all=await api('/api/expenses');for(const e of all)await api('/api/expenses/'+e.id,{method:'DELETE'});await loadData();showToast('Cleared');}catch(e){showToast('Failed');}}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('payOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closePayModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePayModal();}});
+loadData();
+</script>
+</body>
+</html>
