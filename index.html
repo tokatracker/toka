@@ -5,8 +5,98 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Toka — Know every kharcha before it hits</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#c2410c">
-<style>
-:root{--font-body:'Plus Jakarta Sans',system-ui,sans-serif;--font-mono:'JetBrains Mono','SF Mono',Consolas,monospace;--bg:#faf8f5;--surface:#fff;--surface-recessed:#f3f0eb;--border:rgba(0,0,0,.07);--border-bright:rgba(0,0,0,.14);--text:#1a1512;--text-dim:#78706c;--accent:#c2410c;--accent-dim:rgba(194,65,12,.08);--accent-light:rgba(194,65,12,.04);--green:#059669;--green-dim:rgba(5,150,105,.1);--red:#dc2626;--red-dim:rgba(220,38,38,.08);--amber:#d97706;--amber-dim:rgba(217,119,6,.1);--blue:#0369a1;--blue-dim:rgba(3,105,161,.08);--purple:#7c3aed;--purple-dim:rgba(124,58,237,.08);--shadow-sm:0 1px 2px rgba(0,0,0,.04);--shadow-md:0 2px 8px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 8px 30px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04)}
-@media(prefers-color-scheme:dark){:root{--bg:#14110e;--surface:#1f1a16;--surface-recessed:#16110e;--border:rgba(255,255,255,.06);--border-bright:rgba(255,255,255,.12);--text:#f5f0ec;--text-dim:#9c938b;--accent:#f97316;--accent-dim:rgba(249,115,22,.12);--accent-light:rgba(249,115,22,.05);--green:#34d399;--green-dim:rgba(52,211,153,.12);--red:#f87171;--red-dim:rgba(248,113,113,.1);--amber:#fbbf24;--amber-dim:rgba(251,191,36,.12);--blue:#38bdf8;--blue-dim:rgba(56,189,248,.1);--purple:#a78bfa;--purple-dim:rgba(167,139,250,.12)}}
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo"><span class="logo__mark">toka</span><span class="logo__tag">every kharcha</span></div>
+    <div class="header__right"><button class="btn-add" onclick="openModal()">+ Add Expense</button></div>
+  </header>
+  <div class="burn-hero">
+    <div class="burn-hero__label">Total Monthly Burn</div>
+    <div class="burn-hero__amount"><span class="currency">&#8377;</span><span id="totalMonthly">0</span></div>
+    <div class="burn-hero__sub" id="burnSub"></div>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('payments',this)">Payment History</button>
+    <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
+  </div>
+  <div id="view-dashboard">
+    <div class="section">
+      <div class="section__head">
+        <div class="section__title"><span class="dot-ind"></span>Upcoming Renewals</div>
+        <div class="section__meta" id="renewalMeta"></div>
+      </div>
+      <div class="renewal-list" id="renewalList"></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">All Expenses</div></div>
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Cycle</th><th>Next Due</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Category Breakdown</div></div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+  </div>
+  <div id="view-payments" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Payment History</div></div>
+      <div class="pay-history-list" id="payHistoryList"></div>
+    </div>
+    <div class="section"><div class="summary-card" id="paySummary"></div></div>
+  </div>
+  <div id="view-settings" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Notifications</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Renewal Reminders</div><div class="settings-row__desc">Get notified before subscriptions renew</div></div><label class="toggle"><input type="checkbox" id="setRenewal" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+        <div class="settings-row"><div><div class="settings-row__label">Reminder Days</div><div class="settings-row__desc">How many days before due date</div></div><select class="settings-select" id="setDays" onchange="saveSettings()"><option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+        <div class="settings-row"><div><div class="settings-row__label">Push Notifications</div><div class="settings-row__desc">Browser notifications for due dates</div></div><label class="toggle"><input type="checkbox" id="setPush" onchange="togglePush()"><span class="toggle-slider"></span></label></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Data</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Clear All Data</div><div class="settings-row__desc">Delete all expenses and payment history</div></div><button class="btn-mini btn-mini--cancel" onclick="clearAllData()">Clear All</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal__title">Add Expense</div>
+    <div class="modal__sub">Track a recurring expense or subscription</div>
+    <div class="field"><label>Name</label><input type="text" id="fName" placeholder="e.g. Netflix, Gym, Rent" oninput="checkMerchant()"></div>
+    <div class="merchant-hint" id="merchantHint" style="display:none"></div>
+    <div class="field-row"><div class="field"><label>Amount (&#8377;)</label><input type="number" id="fAmount" placeholder="649"></div><div class="field"><label>Type</label><select id="fType"><option value="sub">Subscription</option><option value="bill">Bill</option><option value="pers">Personal</option></select></div></div>
+    <div class="field-row"><div class="field"><label>Category</label><input type="text" id="fCategory" placeholder="OTT, Utility, Fitness..."></div><div class="field"><label>Billing Cycle</label><select id="fCycle"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="onetime">One-time</option></select></div></div>
+    <div class="field"><label>Next Due Date</label><input type="date" id="fNextDue"></div>
+    <div class="field"><label>Manage / Cancel Link (optional)</label><input type="url" id="fLink" placeholder="https://..."></div>
+    <div class="field"><label>UPI ID (optional)</label><input type="text" id="fUpiId" placeholder="merchant@upi"></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="submitExpense()">Add Expense</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="payOverlay">
+  <div class="modal">
+    <div class="modal__title">Pay via UPI</div>
+    <div class="pay-to">Paying <strong id="payName">-</strong></div>
+    <div class="pay-amount-display"><div class="amt">&#8377;<span id="payAmount">0</span></div><div class="lbl">due now</div></div>
+    <div class="pay-apps" id="payApps"></div>
+    <div class="pay-copy-link"><label>UPI Deep Link</label><div class="copy-row"><input type="text" id="upiLink" readonly><button onclick="copyUpiLink()">Copy</button></div></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closePayModal()">Close</button><button class="btn-primary" onclick="markPaid()">Mark as Paid</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
