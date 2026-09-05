@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_BE_READ
+/scratch/work/toka/app.js
