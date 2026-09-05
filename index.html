@@ -1,1 +1,143 @@
-/scratch/work/toka/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toka — Know every kharcha before it hits</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#c2410c">
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="logo"><span class="logo__mark">toka</span><span class="logo__tag">every kharcha</span></div>
+    <div class="header__right"><button class="btn-add" onclick="openModal()">+ Add Expense</button></div>
+  </header>
+  <div class="burn-hero">
+    <div class="burn-hero__label">Total Monthly Burn</div>
+    <div class="burn-hero__amount"><span class="currency">&#8377;</span><span id="totalMonthly">0</span></div>
+    <div class="burn-hero__sub" id="burnSub"></div>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('payments',this)">Payment History</button>
+    <button class="nav-tab" onclick="switchTab('insights',this)">Insights</button>
+    <button class="nav-tab" onclick="switchTab('settings',this)">Settings</button>
+  </div>
+  <div id="view-dashboard">
+    <div class="section">
+      <div class="section__head">
+        <div class="section__title"><span class="dot-ind"></span>Upcoming Renewals</div>
+        <div class="section__meta" id="renewalMeta"></div>
+      </div>
+      <div class="renewal-list" id="renewalList"></div>
+    </div>
+    <div class="section">
+      <div class="section__head">
+        <div class="section__title">All Expenses</div>
+        <div class="search-filter">
+          <input type="text" id="searchInput" placeholder="Search..." oninput="renderTable()" class="search-box">
+          <select id="filterStatus" onchange="renderTable()" class="filter-select">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="snoozed">Snoozed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Type</th><th>Category</th><th>Cycle</th><th>Next Due</th><th class="num">/mo</th><th class="num">/yr</th><th>Status</th><th></th></tr></thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Category Breakdown</div></div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+  </div>
+  <div id="view-payments" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Payment History</div></div>
+      <div class="pay-history-list" id="payHistoryList"></div>
+    </div>
+    <div class="section"><div class="summary-card" id="paySummary"></div></div>
+  </div>
+  <div id="view-insights" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Spending by Category</div></div>
+      <div class="chart-card"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Monthly Spend Trend</div></div>
+      <div class="chart-card"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Expenses by Type</div></div>
+      <div class="chart-card"><canvas id="typeChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Payment Method Breakdown</div></div>
+      <div class="chart-card"><canvas id="methodChart"></canvas></div>
+    </div>
+  </div>
+  <div id="view-settings" style="display:none">
+    <div class="section">
+      <div class="section__head"><div class="section__title">Notifications</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Renewal Reminders</div><div class="settings-row__desc">Get notified before subscriptions renew</div></div><label class="toggle"><input type="checkbox" id="setRenewal" onchange="saveSettings()"><span class="toggle-slider"></span></label></div>
+        <div class="settings-row"><div><div class="settings-row__label">Reminder Days</div><div class="settings-row__desc">How many days before due date</div></div><select class="settings-select" id="setDays" onchange="saveSettings()"><option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+        <div class="settings-row"><div><div class="settings-row__label">Push Notifications</div><div class="settings-row__desc">Browser notifications for due dates</div></div><label class="toggle"><input type="checkbox" id="setPush" onchange="togglePush()"><span class="toggle-slider"></span></label></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Export Data</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Export as CSV</div><div class="settings-row__desc">Download expenses & payments for Excel / Sheets</div></div><button class="btn-mini btn-mini--manage" onclick="exportCSV()">Download CSV</button></div>
+        <div class="settings-row"><div><div class="settings-row__label">Export as JSON</div><div class="settings-row__desc">Full backup of all your Toka data</div></div><button class="btn-mini btn-mini--manage" onclick="exportJSON()">Download JSON</button></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__head"><div class="section__title">Data</div></div>
+      <div class="summary-card">
+        <div class="settings-row"><div><div class="settings-row__label">Clear All Data</div><div class="settings-row__desc">Delete all expenses and payment history</div></div><button class="btn-mini btn-mini--cancel" onclick="clearAllData()">Clear All</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal__title">Add Expense</div>
+    <div class="modal__sub">Track a recurring expense or subscription</div>
+    <div class="field"><label>Name</label><input type="text" id="fName" placeholder="e.g. Netflix, Gym, Rent" oninput="checkMerchant()"></div>
+    <div class="merchant-hint" id="merchantHint" style="display:none"></div>
+    <div class="field-row"><div class="field"><label>Amount</label><input type="number" id="fAmount" placeholder="649"></div><div class="field"><label>Type</label><select id="fType"><option value="sub">Subscription</option><option value="bill">Bill</option><option value="pers">Personal</option></select></div></div>
+    <div class="field-row"><div class="field"><label>Category</label><select id="fCategory"><option value="">Select...</option><option value="OTT">OTT / Streaming</option><option value="Telecom">Telecom / Mobile</option><option value="Utility">Utility</option><option value="Fitness">Fitness</option><option value="Food">Food Delivery</option><option value="Software">Software / SaaS</option><option value="Rent">Rent</option><option value="Education">Education</option><option value="Gaming">Gaming</option><option value="Insurance">Insurance / EMI</option><option value="Other">Other</option></select></div><div class="field"><label>Billing Cycle</label><select id="fCycle"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="onetime">One-time</option></select></div></div>
+    <div class="field"><label>Next Due Date</label><input type="date" id="fNextDue"></div>
+    <div class="field"><label>Manage / Cancel Link (optional)</label><input type="url" id="fLink" placeholder="https://..."></div>
+    <div class="field"><label>UPI ID (optional)</label><input type="text" id="fUpiId" placeholder="merchant@upi"></div>
+    <div class="field"><label>Payment Type</label><select id="fPayType"><option value="auto">Auto (UPI AutoPay / Card)</option><option value="manual">Manual (I pay each time)</option></select></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="submitExpense()">Add Expense</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="payOverlay">
+  <div class="modal">
+    <div class="modal__title">Pay via UPI</div>
+    <div class="pay-to">Paying <strong id="payName">-</strong></div>
+    <div class="pay-amount-display"><div class="amt">&#8377;<span id="payAmount">0</span></div><div class="lbl">due now</div></div>
+    <div class="pay-apps" id="payApps"></div>
+    <div class="pay-copy-link"><label>UPI Deep Link</label><div class="copy-row"><input type="text" id="upiLink" readonly><button onclick="copyUpiLink()">Copy</button></div></div>
+    <div class="modal__actions"><button class="btn-secondary" onclick="closePayModal()">Close</button><button class="btn-primary" onclick="markPaid()">Mark as Paid</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
