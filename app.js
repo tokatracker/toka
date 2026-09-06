@@ -20,7 +20,7 @@ apple:{link:'https://support.apple.com/billing',cat:'Software',amt:75,yrly:true}
 chatgpt:{link:'https://chat.openai.com/#settings/Subscription',cat:'Software',amt:1950,yrly:true},
 openai:{link:'https://chat.openai.com/#settings/Subscription',cat:'Software',amt:1950,yrly:true},
 github:{link:'https://github.com/settings/billing',cat:'Software',amt:499,yrly:true},
-notion:{link:'https://www.notion.so/my-integrations',cat:'Software',amt:800,yrly:true},
+notibon:{link:'https://www.notion.so/my-integrations',cat:'Software',amt:800,yrly:true},
 linktree:{link:'https://linktr.ee/account/settings',cat:'Software',amt:999,yrly:true},
 linkedin:{link:'https://www.linkedin.com/premium/manage',cat:'Software',amt:1400,yrly:true},
 gaana:{link:'https://gaana.com/myaccount',cat:'OTT',amt:999,yrly:true},
@@ -38,7 +38,7 @@ namecheap:{link:'https://www.namecheap.com/dashboard/',cat:'Software',amt:800,yr
 godaddy:{link:'https://dcc.godaddy.com/manage',cat:'Software',amt:600,yrly:true},
 dream11:{link:'https://www.dream11.com/',cat:'Gaming',amt:199},
 gpay:{link:'',cat:'Telecom',amt:0},
-phonepe:{link:'',cat:'Telecom',amt:0},
+phonepp:{link:'',cat:'Telecom',amt:0},
 paytm:{link:'',cat:'Telecom',amt:0},
 gmail:{link:'https://one.google.com/about/ai-premium',cat:'Software',amt:1950,yrly:true},
 dopub:{link:'https://digitalopc.onelink.me/collect',cat:'Telecom',amt:0},
@@ -52,373 +52,71 @@ gym:{link:'',cat:'Fitness',amt:1500},
 insurance:{link:'',cat:'Insurance',amt:8000,yrly:true},
 rent:{link:'',cat:'Rent',amt:15000},
 loan:{link:'',cat:'Insurance',amt:5000},
-emi:{link:'',cat:'Insurance',amt:5000},
-sip:{link:'',cat:'Insurance',amt:5000},
-udemy:{link:'https://www.udemy.com/home/my-courses/learning/',cat:'Education',amt:500},
-coursera:{link:'https://www.coursera.org/account',cat:'Education',amt:3999,yrly:true},
-skillshare:{link:'https://www.skillshare.com/account/subscription',cat:'Education',amt:2000,yrly:true},
-duolingo:{link:'https://www.duolingo.com/plus',cat:'Education',amt:2500,yrly:true},
-byjus:{link:'',cat:'Education',amt:3000},
-unacademy:{link:'',cat:'Education',amt:1500}
-};
-const PAY_APPS=[{name:'PhonePe',icon:'P',color:'#5f259f',scheme:'phonepe'},{name:'GPay',icon:'G',color:'#1a73e8',scheme:'tez'},{name:'Paytm',icon:'P',color:'#00baf2',scheme:'paytmmp'},{name:'BHIM',icon:'B',color:'#f47216',scheme:'bhim'},{name:'Amazon Pay',icon:'A',color:'#ff9900',scheme:'amazonpay'},{name:'WhatsApp',icon:'W',color:'#25d366',scheme:'whatsapp'}];
-const DAILY_CATS=['Food','Transport','Shopping','Entertainment','Bills','Health','Other'];
-let expenses=[],payments=[],settings={},currentPayExpense=null;
-let dailyLogs=[],ratings={};
-let catChartInst=null,trendChartInst=null,typeChartInst=null,methodChartInst=null;
-let streakCount=0,streakFreeze=0,streakLastDate='';
-function load(key,def){try{const v=localStorage.getItem('toka_'+key);return v?JSON.parse(v):def;}catch(e){return def;}}
-function save(key,val){localStorage.setItem('toka_'+key,JSON.stringify(val));}
-function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
-function fmtR(n){return new Intl.NumberFormat('en-IN').format(Math.round(n));}
-function daysUntil(d){const x=new Date(d);x.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);return Math.round((x-t)/86400000);}
-function fmtDue(d){const days=daysUntil(d);if(days<0)return'Overdue by '+Math.abs(days)+'d';if(days===0)return'Due today';if(days===1)return'Tomorrow';return'In '+days+' days';}
-function typeBadge(t){return'<span class="type-badge type-badge--'+t+'">'+(t==='sub'?'Sub':t==='bill'?'Bill':'Pers')+'</span>';}
-function statusBadge(s){return'<span class="status-badge status-badge--'+s+'">'+(s==='active'?'Active':s==='snoozed'?'Snoozed':'Cancelled')+'</span>';}
-function catColor(c){const m={'OTT':'accent','Telecom':'blue','Utility':'blue','Fitness':'green','Food':'amber','Software':'accent','Rent':'red','Education':'green','Gaming':'purple','Insurance':'blue','Other':'accent'};return m[c]||'accent';}
-function catIcon(c){return c?c.charAt(0).toUpperCase():'?';}
-function getCSSVar(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
-function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function loadData(){expenses=load('expenses',[]);payments=load('payments',[]);settings=load('settings',{});dailyLogs=load('dailyLogs',[]);ratings=load('ratings',{});updateStreak();renderDashboard();renderPayments();renderSettings();renderInsights();renderDailyLog();renderStreak();renderInsightsTab();}
-
-// ===== STREAK SYSTEM =====
-function updateStreak(){
-  const today=todayStr();
-  if(streakLastDate===today)return;
-  if(!streakLastDate){streakCount=0;streakFreeze=1;streakLastDate=today;saveStreak();return;}
-  const last=new Date(streakLastDate);
-  const now=new Date(today);
-  const diff=Math.round((now-last)/86400000);
-  if(diff===1){
-    streakCount++;
-    if(streakCount===7)streakFreeze=Math.max(streakFreeze,1);
-    if(streakCount===30)streakFreeze=Math.max(streakFreeze,2);
-    if(streakCount===7||streakCount===30||streakCount===100)trackEvent('streak_milestone','engagement',{days:streakCount});
-    streakLastDate=today;
-  }else if(diff>1){
-    if(streakFreeze>0&&diff===2){
-      streakFreeze--;
-      streakCount++;
-      streakLastDate=today;
-    }else{
-      streakCount=1;
-      streakFreeze=1;
-      streakLastDate=today;
-    }
-  }
-  saveStreak();
-}
-function saveStreak(){save('streak',{count:streakCount,freeze:streakFreeze,lastDate:streakLastDate});}
-function loadStreak(){const s=load('streak',{});streakCount=s.count||0;streakFreeze=s.freeze||0;streakLastDate=s.lastDate||'';}
-function renderStreak(){
-  const el=document.getElementById('streakBadge');
-  if(!el)return;
-  let flame='ğŸ”¥';
-  el.innerHTML='<span class="streak-flame">'+flame+'</span><span class="streak-count">'+streakCount+'</span>'+(streakFreeze>0?'<span class="streak-freeze" title="Streak freeze available">â„ï¸</span>':'');
-  el.className=streakCount>0?'streak-badge active':'streak-badge';
-}
-
-// ===== DAILY KHARCHA LOG =====
-function quickLog(){
-  const amt=document.getElementById('quickAmount').value;
-  const cat=document.getElementById('quickCat').value;
-  const note=document.getElementById('quickNote').value.trim();
-  if(!amt||parseInt(amt)<=0){showToast('Enter an amount');return;}
-  const entry={id:genId(),amount:parseInt(amt),category:cat||'Other',note:note||'',date:todayStr(),time:new Date().toISOString()};
-  dailyLogs.unshift(entry);
-  save('dailyLogs',dailyLogs);
-  document.getElementById('quickAmount').value='';
-  document.getElementById('quickNote').value='';
-  document.getElementById('quickCat').value='Food';
-  renderDailyLog();
-  renderInsightsTab();
-  trackEvent('daily_log','engagement',{amount:parseInt(amt),category:cat||'Other'});
-  showToast('Logged â‚¹'+fmtR(parseInt(amt)));
-}
-function deleteDailyLog(id){dailyLogs=dailyLogs.filter(e=>e.id!==id);save('dailyLogs',dailyLogs);renderDailyLog();renderInsightsTab();showToast('Deleted');}
-function renderDailyLog(){
-  const list=document.getElementById('dailyLogList');
-  if(!list)return;
-  const today=todayStr();
-  const todayEntries=dailyLogs.filter(e=>e.date===today);
-  const todayTotal=todayEntries.reduce((s,e)=>s+e.amount,0);
-  document.getElementById('dailyTotal').textContent='â‚¹'+fmtR(todayTotal);
-  if(todayEntries.length===0){list.innerHTML='<div class="empty"><div class="empty__text">No spending logged today</div></div>';return;}
-  list.innerHTML=todayEntries.map((e,i)=>{
-    const cv=catColor(e.category);
-    return '<div class="daily-item" style="--i:'+i+'"><div class="daily-item__icon" style="background:var(--'+cv+'-dim);color:var(--'+cv+')">'+catIcon(e.category)+'</div><div class="daily-item__info"><div class="daily-item__cat">'+e.category+(e.note?' Â· <span class="daily-item__note">'+e.note+'</span>':'')+'</div><div class="daily-item__time">'+new Date(e.time).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'})+'</div></div><div class="daily-item__amount">â‚¹'+fmtR(e.amount)+'</div><button class="del-btn" onclick="deleteDailyLog(\''+e.id+'\')">x</button></div>';
-  }).join('');
-  const weekTotal=dailyLogs.filter(e=>{const d=new Date(e.date);const now=new Date();return(now-d)/86400000<=7;}).reduce((s,e)=>s+e.amount,0);
-  const wt=document.getElementById('weekTotal');if(wt)wt.textContent='â‚¹'+fmtR(weekTotal);
-}
-function renderDailyHistory(){
-  const list=document.getElementById('dailyHistoryList');
-  if(!list)return;
-  if(dailyLogs.length===0){list.innerHTML='<div class="empty"><div class="empty__text">No history yet</div></div>';return;}
-  const byDate={};
-  dailyLogs.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
-  const dates=Object.keys(byDate).sort().reverse().slice(0,14);
-  list.innerHTML=dates.map(date=>{
-    const entries=byDate[date];
-    const total=entries.reduce((s,e)=>s+e.amount,0);
-    const d=new Date(date);
-    const label=d.toLocaleDateString('en-IN',{day:'numeric',month:'short',weekday:'short'});
-    const today=todayStr()===date;
-    return '<div class="daily-hist-day"><div class="daily-hist-day__head"><span class="daily-hist-day__date">'+(today?'Today':label)+'</span><span class="daily-hist-day__total">â‚¹'+fmtR(total)+'</span></div>'+entries.map(e=>'<div class="daily-hist-item"><span class="daily-hist-item__cat">'+e.category+(e.note?' Â· '+e.note:'')+'</span><span class="daily-hist-item__amt">â‚¹'+fmtR(e.amount)+'</span></div>').join('')+'</div>';
-  }).join('');
-}
-
-// ===== SMART INSIGHTS =====
-function renderInsightsTab(){
-  const el=document.getElementById('insightsCards');
-  if(!el)return;
-  const insights=generateInsights();
-  if(insights.length===0){el.innerHTML='<div class="empty"><div class="empty__text">Add expenses and log daily spending to see insights</div></div>';return;}
-  el.innerHTML=insights.map((ins,i)=>'<div class="insight-card insight-card--'+ins.type+'" style="--i:'+i+'"><div class="insight-card__icon">'+ins.icon+'</div><div class="insight-card__body"><div class="insight-card__title">'+ins.title+'</div><div class="insight-card__desc">'+ins.desc+'</div></div></div>').join('');
-}
-function generateInsights(){
-  const out=[];
-  const today=todayStr();
-  const todayEntries=dailyLogs.filter(e=>e.date===today);
-  const todayTotal=todayEntries.reduce((s,e)=>s+e.amount,0);
-  const now=new Date();
-  const thisWeek=dailyLogs.filter(e=>{const d=new Date(e.date);return(now-d)/86400000<=7;});
-  const lastWeek=dailyLogs.filter(e=>{const d=new Date(e.date);const diff=(now-d)/86400000;return diff>7&&diff<=14;});
-  const weekTotal=thisWeek.reduce((s,e)=>s+e.amount,0);
-  const lastWeekTotal=lastWeek.reduce((s,e)=>s+e.amount,0);
-  const active=expenses.filter(e=>e.status!=='cancelled');
-  const subMonthly=active.reduce((s,e)=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;return s+m;},0);
-  const subYearly=subMonthly*12;
-  if(subYearly>0){
-    out.push({type:'amber',icon:'ğŸ’°',title:'Yearly subscription burn: â‚¹'+fmtR(subYearly),desc:'That\'s â‚¹'+fmtR(subYearly/12)+' every month on subscriptions alone. Cancelling even one could save you thousands.'});
-  }
-  if(weekTotal>0&&lastWeekTotal>0){
-    const pct=Math.round((weekTotal-lastWeekTotal)/lastWeekTotal*100);
-    if(pct>20){
-      out.push({type:'red',icon:'ğŸ“ˆ',title:'You\'re spending '+pct+'% more this week',desc:'â‚¹'+fmtR(weekTotal)+' this week vs â‚¹'+fmtR(lastWeekTotal)+' last week. Time to slow down?'});
-    }else if(pct<-20){
-      out.push({type:'green',icon:'ğŸ“‰',title:'You\'re spending '+Math.abs(pct)+'% less this week',desc:'â‚¹'+fmtR(weekTotal)+' this week vs â‚¹'+fmtR(lastWeekTotal)+' last week. Nice control!'});
-    }else{
-      out.push({type:'blue',icon:'âš–ï¸',title:'Spending is stable',desc:'â‚¹'+fmtR(weekTotal)+' this week vs â‚¹'+fmtR(lastWeekTotal)+' last week. Consistent.'});
-    }
-  }else if(weekTotal>0){
-    out.push({type:'blue',icon:'ğŸ“…',title:'â‚¹'+fmtR(weekTotal)+' spent this week',desc:'Keep logging daily to see weekly trends and patterns.'});
-  }
-  if(todayTotal>0){
-    out.push({type:'accent',icon:'ğŸ›’',title:'â‚¹'+fmtR(todayTotal)+' spent today',desc:todayEntries.length+' transaction'+(todayEntries.length>1?'s':'')+' today. '+DAILY_CATS.map(c=>{const t=todayEntries.filter(e=>e.category===c).reduce((s,e)=>s+e.amount,0);return t>0?c+': â‚¹'+fmtR(t):null;}).filter(Boolean).join(', ')+'.'});
-  }
-  if(thisWeek.length>0){
-    const catMap={};
-    thisWeek.forEach(e=>{catMap[e.category]=(catMap[e.category]||0)+e.amount;});
-    const topCat=Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
-    if(topCat){
-      const pctOfWeek=Math.round(topCat[1]/weekTotal*100);
-      out.push({type:'purple',icon:'ğŸ†',title:topCat[0]+' is your top category',desc:'â‚¹'+fmtR(topCat[1])+' this week â€” '+pctOfWeek+'% of your weekly spending.'});
-    }
-  }
-  if(todayTotal>0&&subMonthly>0){
-    const days=Math.round(todayTotal/(subMonthly/30));
-    if(days>=1){
-      out.push({type:'amber',icon:'ğŸ”„',title:'Today\'s spending = '+days+' day'+(days>1?'s':'')+' of subscriptions',desc:'You spent â‚¹'+fmtR(todayTotal)+' today. Your subscriptions cost â‚¹'+fmtR(Math.round(subMonthly/30))+'/day.'});
-    }
-  }
-  if(active.length>0){
-    const mostExp=active.reduce((a,b)=>{let ma=a.amount;if(a.cycle==='yearly')ma=a.amount/12;else if(a.cycle==='quarterly')ma=a.amount/3;else if(a.cycle==='onetime')ma=0;let mb=b.amount;if(b.cycle==='yearly')mb=b.amount/12;else if(b.cycle==='quarterly')mb=b.amount/3;else if(b.cycle==='onetime')mb=0;return mb>ma?b:a;});
-    let mAmt=mostExp.amount;if(mostExp.cycle==='yearly')mAmt=mostExp.amount/12;else if(mostExp.cycle==='quarterly')mAmt=mostExp.amount/3;
-    out.push({type:'red',icon:'âš ï¸',title:mostExp.name+' costs â‚¹'+fmtR(mAmt)+'/month',desc:'Your most expensive active subscription. â‚¹'+fmtR(mAmt*12)+'/year. Worth it?'});
-  }
-  if(dailyLogs.length>=3){
-    const dates=[...new Set(dailyLogs.map(e=>e.date))];
-    const totalAll=dailyLogs.reduce((s,e)=>s+e.amount,0);
-    const avg=Math.round(totalAll/dates.length);
-    out.push({type:'blue',icon:'ğŸ“Š',title:'Average daily spending: â‚¹'+fmtR(avg),desc:'Across '+dates.length+' days of tracking. Total â‚¹'+fmtR(totalAll)+' logged.'});
-  }
-  return out.slice(0,6);
-}
-
-// ===== SUBSCRIPTION REVIEW / RATING =====
-function getRatingPrompt(){
-  const active=expenses.filter(e=>e.status!=='cancelled');
-  if(active.length===0)return null;
-  const today=todayStr();
-  for(const e of active){
-    const lastRated=ratings[e.id];
-    if(!lastRated||daysSince(lastRated.date)>=7){
-      return e;
-    }
-  }
-  return null;
-}
-function daysSince(dateStr){const d=new Date(dateStr);const now=new Date();d.setHours(0,0,0,0);now.setHours(0,0,0,0);return Math.round((now-d)/86400000);}
-function showRatingPrompt(){
-  const e=getRatingPrompt();
-  if(!e){document.getElementById('ratingPrompt').style.display='none';return;}
-  document.getElementById('ratingPrompt').style.display='block';
-  document.getElementById('ratingName').textContent=e.name;
-  document.getElementById('ratingName').dataset.expenseId=e.id;
-  document.querySelectorAll('.star-btn').forEach(s=>s.dataset.selected='');
-}
-function rateSub(stars){
-  document.querySelectorAll('.star-btn').forEach(s=>{
-    s.dataset.selected=parseInt(s.dataset.star)<=stars?'1':'';
-  });
-}
-function submitRating(){
-  const nameEl=document.getElementById('ratingName');
-  const id=nameEl.dataset.expenseId;
-  const selected=document.querySelector('.star-btn[data-selected="1"]');
-  if(!selected){showToast('Tap a star to rate');return;}
-  const stars=parseInt(selected.dataset.star);
-  if(!ratings[id])ratings[id]={};
-  ratings[id].lastRating=stars;
-  ratings[id].date=todayStr();
-  ratings[id].history=ratings[id].history||[];
-  ratings[id].history.push({stars,date:todayStr()});
-  save('ratings',ratings);
-  showRatingPrompt();
-  renderSubReview();
-  trackEvent('rate_subscription','engagement',{stars:stars});
-  showToast('Rated '+stars+'â­');
-}
-function skipRating(){showRatingPrompt();showToast('Skipped');}
-function renderSubReview(){
-  const el=document.getElementById('subReviewList');
-  if(!el)return;
-  const active=expenses.filter(e=>e.status!=='cancelled');
-  if(active.length===0){el.innerHTML='<div class="empty"><div class="empty__text">No active subscriptions</div></div>';return;}
-  const items=active.map(e=>{
-    let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;
-    const r=ratings[e.id];
-    const avgR=r&&r.history?Math.round(r.history.reduce((s,h)=>s+h.stars,0)/r.history.length*10)/10:null;
-    const perUse=avgR&&avgR>0?Math.round(m/(avgR/5*30)):null;
-    return {e,m,avgR,perUse};
-  }).filter(x=>x.avgR).sort((a,b)=>(a.avgR||5)-(b.avgR||5));
-  if(items.length===0){el.innerHTML='<div class="empty"><div class="empty__text">Rate your subscriptions to see cost-per-use</div></div>';return;}
-  el.innerHTML=items.map(x=>{
-    const stars='â­'.repeat(Math.round(x.avgR));
-    const cpuTxt=x.perUse?'â‚¹'+fmtR(x.perUse)+'/use':'';
-    const lowRating=x.avgR<=2.5;
-    return '<div class="sub-review-item'+(lowRating?' sub-review-item--low':'')+'"><div class="sub-review-item__name">'+x.e.name+'</div><div class="sub-review-item__rating">'+stars+' <span class="sub-review-item__avg">'+x.avgR+'</span></div><div class="sub-review-item__cost">'+cpuTxt+'</div>'+(lowRating?'<div class="sub-review-item__warn">Low usage â€” consider cancelling?</div>':'')+'</div>';
-  }).join('');
-}
-
-function addExpense(d){const id=genId();const e={id,...d,status:'active',createdAt:new Date().toISOString()};expenses.push(e);save('expenses',expenses);return e;}
-function updateExpense(id,updates){const e=expenses.find(x=>x.id===id);if(!e)return null;if(updates.status!==undefined)e.status=updates.status;if(updates.nextDue!==undefined)e.nextDue=updates.nextDue;save('expenses',expenses);return e;}
-function deleteExpenseData(id){expenses=expenses.filter(e=>e.id!==id);save('expenses',expenses);}
-function addPayment(p){const pay={id:genId(),...p,date:new Date().toISOString()};payments.unshift(pay);save('payments',payments);return pay;}
-function saveSettingsData(d){settings={...settings,...d};save('settings',settings);}
-function clearAllDataLocal(){expenses=[];payments=[];settings={};dailyLogs=[];ratings={};streakCount=0;streakFreeze=0;streakLastDate='';localStorage.removeItem('toka_expenses');localStorage.removeItem('toka_payments');localStorage.removeItem('toka_settings');localStorage.removeItem('toka_dailyLogs');localStorage.removeItem('toka_ratings');localStorage.removeItem('toka_streak');}
-function renderDashboard(){const a=expenses.filter(e=>e.status!=='cancelled');let tm=0,sm=0,bm=0,pm=0;a.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;tm+=m;if(e.type==='sub')sm+=m;else if(e.type==='bill')bm+=m;else pm+=m;});document.getElementById('totalMonthly').textContent=fmtR(tm);document.getElementById('burnSub').innerHTML='<span><span class="dot dot--sub"></span>Subs <strong>â‚¹'+fmtR(sm)+'</strong></span><span><span class="dot dot--bill"></span>Bills <strong>â‚¹'+fmtR(bm)+'</strong></span><span><span class="dot dot--pers"></span>Pers <strong>â‚¹'+fmtR(pm)+'</strong></span>';const uc=a.filter(e=>{const d=daysUntil(e.nextDue);return d>=0&&d<=7;}).length;const sc=expenses.filter(e=>e.status==='snoozed').length;document.getElementById('kpiRow').innerHTML='<div class="kpi-card" style="--i:0"><div class="kpi-card__value">â‚¹'+fmtR(tm*12)+'</div><div class="kpi-card__label">Yearly</div></div><div class="kpi-card" style="--i:1"><div class="kpi-card__value">'+uc+'</div><div class="kpi-card__label">This Week</div></div><div class="kpi-card" style="--i:2"><div class="kpi-card__value" style="color:var(--amber)">'+sc+'</div><div class="kpi-card__label">Snoozed</div></div><div class="kpi-card" style="--i:3"><div class="kpi-card__value">'+expenses.length+'</div><div class="kpi-card__label">Total</div></div>';renderRenewals();renderTable();renderCategories();}
-function renderRenewals(){const l=document.getElementById('renewalList');const u=expenses.filter(e=>e.status!=='cancelled').sort((a,b)=>daysUntil(a.nextDue)-daysUntil(b.nextDue)).slice(0,5);if(u.length===0){l.innerHTML='<div class="empty"><div class="empty__text">No renewals yet</div></div>';return;}l.innerHTML=u.map((e,i)=>{const d=daysUntil(e.nextDue);let cls='';if(d<=1)cls='urgent';else if(d<=3)cls='soon';const cv=catColor(e.category);const isManual=e.payType==='manual';const payLabel=isManual?'Pay':'Mark Paid';return'<div class="renewal-item" style="--i:'+i+'"><div class="renewal-item__icon" style="background:var(--'+cv+'-dim);color:var(--'+cv+')">'+catIcon(e.category)+'</div><div class="renewal-item__info"><div class="renewal-item__name">'+(e.link?'<a href="'+e.link+'" target="_blank">'+e.name+'</a>':e.name)+'</div><div class="renewal-item__due '+cls+'">'+fmtDue(e.nextDue)+' - '+e.category+(isManual?'':' Â· Auto')+'</div></div><div class="renewal-item__amount">â‚¹'+fmtR(e.amount)+'</div><div class="renewal-item__actions">'+(e.link?'<a class="btn-mini btn-mini--manage" href="'+e.link+'" target="_blank">Manage</a>':'')+'<button class="btn-mini btn-mini--pay" onclick="openPayModal(\''+e.id+'\')">'+payLabel+'</button><button class="btn-mini btn-mini--snooze" onclick="snoozeExpense(\''+e.id+'\')">Snooze</button><button class="btn-mini btn-mini--cancel" onclick="cancelExpense(\''+e.id+'\')">Cancel</button></div></div>';}).join('');}
-function monthlyAmount(e){let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;return m;}
-function renderTable(){const t=document.getElementById('expenseTableBody');const q=(document.getElementById('searchInput')?.value||'').toLowerCase().trim();const f=document.getElementById('filterStatus')?.value||'';let list=expenses.slice();if(q)list=list.filter(e=>e.name.toLowerCase().includes(q)||e.category.toLowerCase().includes(q));if(f)list=list.filter(e=>e.status===f);if(list.length===0){t.innerHTML='<tr><td colspan="9"><div class="empty">'+((q||f)?'No matches found':'No expenses yet')+'</div></td></tr>';return;}t.innerHTML=list.map(e=>{const mo=monthlyAmount(e);const yr=e.cycle==='onetime'?e.amount:mo*12;return'<tr><td class="row-name">'+(e.link?'<a href="'+e.link+'" target="_blank">'+e.name+'</a>':e.name)+'</td><td>'+typeBadge(e.type)+'</td><td><div class="row-cat">'+e.category+'</div></td><td>'+e.cycle+'</td><td>'+fmtDue(e.nextDue)+'</td><td class="num">â‚¹'+fmtR(mo)+'</td><td class="num">â‚¹'+fmtR(yr)+'</td><td>'+statusBadge(e.status)+'</td><td><button class="del-btn" onclick="deleteExpense(\''+e.id+'\')">x</button></td></tr>';}).join('');}
-function renderCategories(){const g=document.getElementById('catGrid');const a=expenses.filter(e=>e.status!=='cancelled');const c={};a.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;c[e.category]=(c[e.category]||0)+m;});const s=Object.entries(c).sort((a,b)=>b[1]-a[1]);if(s.length===0){g.innerHTML='<div class="empty">No categories</div>';return;}const mx=s[0][1];g.innerHTML=s.map(([cat,amt])=>{const cv=catColor(cat);return'<div class="cat-card"><div class="cat-card__name">'+cat+'</div><div class="cat-card__amount">â‚¹'+fmtR(amt)+'<span class="per">/mo</span></div><div class="cat-card__bar"><div class="cat-card__bar-fill" style="width:'+Math.round(amt/mx*100)+'%;background:var(--'+cv+')"></div></div></div>';}).join('');}
-function renderPayments(){const l=document.getElementById('payHistoryList');if(!payments.length){l.innerHTML='<div class="empty"><div class="empty__text">No payments yet</div></div>';}else{l.innerHTML=payments.map((p,i)=>'<div class="pay-history-item" style="--i:'+i+'"><div class="pay-history-item__icon" style="background:var(--'+catColor(p.category)+'-dim);color:var(--'+catColor(p.category)+')">'+catIcon(p.category)+'</div><div class="pay-history-item__info"><div class="pay-history-item__name">'+p.name+'</div><div class="pay-history-item__meta">'+(p.category||'-')+' - '+new Date(p.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+'</div></div><span class="pay-method pay-method--'+(p.method==='upi'?'upi':'manual')+'">'+p.method+'</span><div class="pay-history-item__amount">â‚¹'+fmtR(p.amount)+'</div></div>').join('');}const total=payments.reduce((s,p)=>s+p.amount,0);const upiT=payments.filter(p=>p.method==='upi').reduce((s,p)=>s+p.amount,0);document.getElementById('paySummary').innerHTML='<div class="summary-row"><span class="summary-row__label">UPI</span><span class="summary-row__value">â‚¹'+fmtR(upiT)+'</span></div><div class="summary-row"><span class="summary-row__label">Manual</span><span class="summary-row__value">â‚¹'+fmtR(total-upiT)+'</span></div><div class="summary-row summary-row--total"><span class="summary-row__label">Total Paid</span><span class="summary-row__value">â‚¹'+fmtR(total)+'</span></div>';}
-function renderSettings(){if(settings.renewal==='true')document.getElementById('setRenewal').checked=true;if(settings.days)document.getElementById('setDays').value=settings.days;if(settings.push==='true')document.getElementById('setPush').checked=true;}
-function switchTab(t,b){document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');['dashboard','dailylog','payments','insights','settings'].forEach(v=>{const el=document.getElementById('view-'+v);if(el)el.style.display=v===t?'block':'none';});if(t==='insights'){renderInsights();renderInsightsTab();renderSubReview();}if(t==='dailylog'){renderDailyLog();renderDailyHistory();}trackEvent('tab_view','navigation',{tab_name:t});}
-function openModal(){document.getElementById('modalOverlay').classList.add('open');const d=new Date();d.setDate(d.getDate()+30);document.getElementById('fNextDue').value=d.toISOString().split('T')[0];}
-function closeModal(){document.getElementById('modalOverlay').classList.remove('open');['fName','fAmount','fCategory','fLink','fUpiId'].forEach(i=>document.getElementById(i).value='');document.getElementById('fPayType').value='auto';document.getElementById('merchantHint').style.display='none';}
-function checkMerchant(){const n=document.getElementById('fName').value.toLowerCase().trim();const h=document.getElementById('merchantHint');const f=Object.keys(MERCHANTS).find(m=>n.includes(m));if(f&&n.length>2){const m=MERCHANTS[f];if(!document.getElementById('fCategory').value)document.getElementById('fCategory').value=m.cat;if(!document.getElementById('fLink').value&&m.link)document.getElementById('fLink').value=m.link;if(!document.getElementById('fAmount').value&&m.amt)document.getElementById('fAmount').value=m.amt;if(m.yrly){const c=document.getElementById('fCycle');if(c.value==='monthly')c.value='yearly';}h.innerHTML='Detected: <strong>'+f+'</strong> - auto-filled';h.style.display='block';}else h.style.display='none';}
-function submitExpense(){const d={name:document.getElementById('fName').value.trim(),amount:parseInt(document.getElementById('fAmount').value),category:document.getElementById('fCategory').value.trim()||'Other',type:document.getElementById('fType').value,cycle:document.getElementById('fCycle').value,nextDue:document.getElementById('fNextDue').value,link:document.getElementById('fLink').value.trim(),upiId:document.getElementById('fUpiId').value.trim(),payType:document.getElementById('fPayType').value||'auto'};if(!d.name||!d.amount||!d.nextDue){showToast('Fill name, amount, due date');return;}addExpense(d);closeModal();loadData();
-  trackEvent('add_expense','engagement',{expense_type:d.type,billing_cycle:d.cycle,pay_type:d.payType});
-  showToast('Added');}
-function openPayModal(id){const e=expenses.find(x=>x.id===id);if(!e)return;currentPayExpense=e;document.getElementById('payName').textContent=e.name;document.getElementById('payAmount').textContent=fmtR(e.amount);const uid=e.upiId||'';const ul=uid?'upi://pay?pa='+uid+'&pn='+encodeURIComponent(e.name)+'&am='+e.amount+'&cu=INR':'';document.getElementById('upiLink').value=ul;document.getElementById('payApps').innerHTML=PAY_APPS.map(a=>'<a class="pay-app" href="'+(uid?a.scheme+'://pay?pa='+uid+'&pn='+encodeURIComponent(e.name)+'&am='+e.amount+'&cu=INR':a.scheme+'://')+'"><div class="pay-app__icon" style="background:'+a.color+'">'+a.icon+'</div><div class="pay-app__name">'+a.name+'</div></a>').join('');document.getElementById('payOverlay').classList.add('open');}
-function closePayModal(){document.getElementById('payOverlay').classList.remove('open');currentPayExpense=null;}
-function copyUpiLink(){const i=document.getElementById('upiLink');i.select();document.execCommand('copy');showToast('Copied');}
-function markPaid(){if(!currentPayExpense)return;const e=currentPayExpense;addPayment({expenseId:e.id,name:e.name,amount:e.amount,category:e.category,method:'upi'});const n=new Date(e.nextDue);if(e.cycle==='yearly'){n.setFullYear(n.getFullYear()+1);}else if(e.cycle==='quarterly'){n.setMonth(n.getMonth()+3);}else if(e.cycle==='onetime'){updateExpense(e.id,{status:'cancelled'});closePayModal();loadData();showToast('Paid');return;}else{n.setMonth(n.getMonth()+1);}updateExpense(e.id,{nextDue:n.toISOString().split('T')[0]});closePayModal();loadData();trackEvent('mark_paid','engagement',{expense_category:e.category,billing_cycle:e.cycle});showToast('Paid');}
-function snoozeExpense(id){const e=expenses.find(x=>x.id===id);if(!e)return;const n=new Date(e.nextDue);if(e.cycle==='yearly'){n.setFullYear(n.getFullYear()+1);}else if(e.cycle==='quarterly'){n.setMonth(n.getMonth()+3);}else{n.setMonth(n.getMonth()+1);}updateExpense(id,{status:'snoozed',nextDue:n.toISOString().split('T')[0]});loadData();showToast('Snoozed');}
-function cancelExpense(id){updateExpense(id,{status:'cancelled'});loadData();showToast('Cancelled');}
-function renewExpense(id){const e=expenses.find(x=>x.id===id);if(!e)return;const n=new Date(e.nextDue);if(e.cycle==='yearly'){n.setFullYear(n.getFullYear()+1);}else if(e.cycle==='quarterly'){n.setMonth(n.getMonth()+3);}else{n.setMonth(n.getMonth()+1);}updateExpense(id,{status:'active',nextDue:n.toISOString().split('T')[0]});loadData();showToast('Renewed');}
-function deleteExpense(id){deleteExpenseData(id);loadData();showToast('Deleted');}
-function saveSettings(){const d={renewal:document.getElementById('setRenewal').checked?'true':'false',days:document.getElementById('setDays').value,push:document.getElementById('setPush').checked?'true':'false'};saveSettingsData(d);showToast('Saved');}
-function togglePush(){if(document.getElementById('setPush').checked){if('Notification'in window){Notification.requestPermission().then(p=>{if(p!=='granted'){document.getElementById('setPush').checked=false;showToast('Denied');return;}saveSettings();});}else{saveSettings();}}else{saveSettings();}}
-function clearAllData(){if(!confirm('Delete ALL data?'))return;clearAllDataLocal();loadData();showToast('Cleared');}
-function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-function trackEvent(action,category,params){if(typeof gtag==='function'){gtag('event',action,{event_category:category,...(params||{})});}}
-function trackPage(view){if(typeof gtag==='function'){gtag('event','page_view',{page_title:view,page_location:location.href+'#'+view});}}
-
-// ===== CHARTS / INSIGHTS =====
-function ensureCanvas(id){let el=document.getElementById(id);if(!el||el.tagName!=='CANVAS'){const parent=el?el.parentElement:document.getElementById(id)?.parentElement;if(parent){parent.innerHTML='<canvas id="'+id+'"></canvas>';el=document.getElementById(id);}}return el;}
-function renderInsights(){
-  if(typeof Chart==='undefined')return;
-  const isDark=window.matchMedia('(prefers-color-scheme:dark)').matches;
-  const textColor=isDark?'#9c938b':'#78706c';
-  const gridColor=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.07)';
-  const accent=getCSSVar('--accent')||'#c2410c';
-  const blue=getCSSVar('--blue')||'#0369a1';
-  const green=getCSSVar('--green')||'#059669';
-  const amber=getCSSVar('--amber')||'#d97706';
-  const purple=getCSSVar('--purple')||'#7c3aed';
-  const red=getCSSVar('--red')||'#dc2626';
-  Chart.defaults.font.family="'Plus Jakarta Sans',system-ui,sans-serif";
-  Chart.defaults.color=textColor;
-  const active=expenses.filter(e=>e.status!=='cancelled');
-  const catMap={};
-  active.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;catMap[e.category]=(catMap[e.category]||0)+m;});
-  const catLabels=Object.keys(catMap);
-  const catValues=Object.values(catMap);
-  const catColors=[accent,blue,green,amber,purple,red,'#0891b2','#db2777','#65a30d','#7c2d12'];
-  destroyChart('catChartInst');
-  const catCanvas=ensureCanvas('catChart');
-  if(catLabels.length>0&&catCanvas){
-    catChartInst=new Chart(catCanvas,{type:'doughnut',data:{labels:catLabels.map(c=>c+' (â‚¹'+fmtR(catMap[c])+')'),datasets:[{data:catValues,backgroundColor:catColors.slice(0,catLabels.length),borderWidth:2,borderColor:getCSSVar('--surface')||'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true,pointStyle:'circle',font:{size:12}}}},cutout:'55%'}});
-  }else if(catCanvas){catCanvas.parentElement.innerHTML='<div class="empty"><div class="empty__text">No data to chart yet</div></div>';}
-  const months=[];const now=new Date();
-  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:d.getFullYear()+'-'+d.getMonth(),label:d.toLocaleDateString('en-IN',{month:'short'})});}
-  const monthData=months.map(m=>{return payments.filter(p=>{const d=new Date(p.date);return d.getFullYear()+'-'+d.getMonth()===m.key;}).reduce((s,p)=>s+p.amount,0);});
-  destroyChart('trendChartInst');
-  const trendCanvas=ensureCanvas('trendChart');
-  if(payments.length>0&&trendCanvas){
-    trendChartInst=new Chart(trendCanvas,{type:'bar',data:{labels:months.map(m=>m.label),datasets:[{label:'Paid (â‚¹)',data:monthData,backgroundColor:accent,borderRadius:6,barThickness:'flex',maxBarThickness:50}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:gridColor},ticks:{callback:v=>'â‚¹'+fmtR(v)}},x:{grid:{display:false}}}}});
-  }else if(trendCanvas){trendCanvas.parentElement.innerHTML='<div class="empty"><div class="empty__text">No payments recorded yet</div></div>';}
-  const typeMap={sub:0,bill:0,pers:0};
-  active.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;typeMap[e.type]=(typeMap[e.type]||0)+m;});
-  destroyChart('typeChartInst');
-  const typeCanvas=ensureCanvas('typeChart');
-  if(active.length>0&&typeCanvas){
-    typeChartInst=new Chart(typeCanvas,{type:'bar',data:{labels:['Subscriptions','Bills','Personal'],datasets:[{data:[typeMap.sub,typeMap.bill,typeMap.pers],backgroundColor:[accent,blue,green],borderRadius:6,barThickness:'flex',maxBarThickness:60}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:gridColor},ticks:{callback:v=>'â‚¹'+fmtR(v)}},y:{grid:{display:false}}}}});
-  }else if(typeCanvas){typeCanvas.parentElement.innerHTML='<div class="empty"><div class="empty__text">No expenses yet</div></div>';}
-  const upiTotal=payments.filter(p=>p.method==='upi').reduce((s,p)=>s+p.amount,0);
-  const manualTotal=payments.filter(p=>p.method!=='upi').reduce((s,p)=>s+p.amount,0);
-  destroyChart('methodChartInst');
-  const methodCanvas=ensureCanvas('methodChart');
-  if(payments.length>0&&methodCanvas){
-    methodChartInst=new Chart(methodCanvas,{type:'pie',data:{labels:['UPI (â‚¹'+fmtR(upiTotal)+')','Manual (â‚¹'+fmtR(manualTotal)+')'],datasets:[{data:[upiTotal,manualTotal],backgroundColor:[purple,blue],borderWidth:2,borderColor:getCSSVar('--surface')||'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true,pointStyle:'circle',font:{size:12}}}}}});
-  }else if(methodCanvas){methodCanvas.parentElement.innerHTML='<div class="empty"><div class="empty__text">No payments recorded yet</div></div>';}
-}
-function destroyChart(name){if(window[name]){window[name].destroy();window[name]=null;}}
-
-// ===== EXPORT =====
-function exportCSV(){
-  if(expenses.length===0&&payments.length===0&&dailyLogs.length===0){showToast('No data to export');return;}
-  let csv='';
-  csv+='EXPENSES\n';
-  csv+='Name,Type,Category,Cycle,Next Due,Amount,Status,Created At\n';
-  expenses.forEach(e=>{csv+=[e.name,e.type,e.category,e.cycle,e.nextDue,e.amount,e.status,e.createdAt].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')+'\n';});
-  csv+='\nPAYMENTS\n';
-  csv+='Name,Amount,Category,Method,Date\n';
-  payments.forEach(p=>{csv+=[p.name,p.amount,p.category||'',p.method,p.date].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')+'\n';});
-  csv+='\nDAILY_LOGS\n';
-  csv+='Date,Amount,Category,Note\n';
-  dailyLogs.forEach(e=>{csv+=[e.date,e.amount,e.category,e.note].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')+'\n';});
-  csv+='\nSUMMARY\n';
+emi:{link:'hœ±…Ğè%¹ÍÕÉ…¹”œ±…µĞèÔÀÀÁô°)Í¥Àéí±¥¹¬èœœ±…Ğè%¹ÍÕÉ…¹”œ±…µĞèÔÀÀÁô°)Õ‘•µäéí±¥¹¬è¡ÑÑÁÌè¼½İİÜ¹Õ‘•µä¹½´½¡½µ”½µäµ½ÕÉÍ•Ì½±•…É¹¥¹œ¼œ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÔÀÁô°)½ÕÉÍ•É„éí±¥¹¬è¡ÑÑÁÌè¼½İİÜ¹½ÕÉÍ•É„¹½Éœ½…½Õ¹Ğœ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÌäää±åÉ±äéÑÉÕ•ô°)Í­¥±±Í¡…É”éí±¥¹¬è¡ÑÑÁÌè¼½İİÜ¹Í­¥±±Í¡…É”¹½´½…½Õ¹Ğ½ÍÕ‰ÍÉ¥ÁÑ¥½¸œ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÈÀÀÀ±åÉ±äéÑÉÕ•ô°)‘Õ½±¥¹¼éí±¥¹¬è¡ÑÑÁÌè¼½İİÜ¹‘Õ½±¥¹¼¹½´½Á±ÕÌœ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÈÔÀÀ±åÉ±äéÑÉÕ•ô°)‰å©ÕÌéí±¥¹¬èœœ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÌÀÀÁô°)Õ¹……‘•µäéí±¥¹¬èœœ±…Ğè‘Õ…Ñ¥½¸œ±…µĞèÄÔÀÁô)ôì)½¹ÍĞAe}AALõmí¹…µ”èA¡½¹•A”œ±¥½¸è@œ±½±½ÈèœŒÕ˜ÈÔå˜œ±Í¡•µ”èÁ¡½¹•Á”ô±í¹…µ”èA…äœ±¥½¸èœ±½±½ÈèœŒÅ„ÜÍ”àœ±Í¡•µ”èÑ•èô±í¹…µ”èA…åÑ´œ±¥½¸è@œ±½±½ÈèœŒÀÁ‰…˜Èœ±Í¡•µ”èÁ…åÑµµÀô±í¹…µ”è	!%4œ±¥½¸èœ±½±½Èèœ˜ĞÜÈÄØœ±Í¡•µ”è‰¡¥´ô±í¹…µ”èµ…é½¸A…äœ±¥½¸èœ±½±½Èèœ™˜ääÀÀœ±Í¡•µ”è…µ…é½¹Á…äô±í¹…µ”è]¡…ÑÍÁÀœ±¥½¸è\œ±½±½ÈèœŒÈÕÌÙˆœ±Í¡•µ”èİ¡…ÑÍ…ÁÀõtì)½¹ÍĞ%1e}QLõl½½œ°QÉ…¹ÍÁ½ÉĞœ°M¡½ÁÁ¥¹œœ°¹Ñ•ÉÑ…¥¹µ•¹Ğœ°	¥±±Ìœ°!•…±Ñ œ°=Ñ¡•Ètì)±•Ğ•áÁ•¹Í•Ìõmt±Á…åµ•¹ÑÌõmt±Í•ÑÑ¥¹Ìõíô±ÕÉÉ•¹ÑA…åáÁ•¹Í”õ¹Õ±°ì)±•Ğ‘…¥±å1½Ìõmt±É…Ñ¥¹Ìõíôì)±•Ğ…Ñ¡…ÉÑ%¹ÍĞõ¹Õ±°±ÑÉ•¹‘¡…ÉÑ%¹ÍĞõ¹Õ±°±ÑåÁ•¡…ÉÑ%¹ÍĞõ¹Õ±°±µ•Ñ¡½‘¡…ÉÑ%¹ÍĞõ¹Õ±°ì)±•ĞÍÑÉ•…­½Õ¹ĞôÀ±ÍÑÉ•…­É••é”ôÀ±ÍÑÉ•…­1…ÍÑ…Ñ”ôœœì)™Õ¹Ñ¥½¸±½…¡­•ä±‘•˜¥íÑÉåí½¹ÍĞØõ±½…±MÑ½É…”¹•Ñ%Ñ•´ Ñ½­…|œ­­•ä¤íÉ•ÑÕÉ¸Øı)M=8¹Á…ÉÍ”¡Ø¤é‘•˜íõ…Ñ ¡”¥íÉ•ÑÕÉ¸‘•˜íõô)™Õ¹Ñ¥½¸Í…Ù”¡­•ä±Ù…°¥í±½…±MÑ½É…”¹Í•Ñ%Ñ•´ Ñ½­…|œ­­•ä±)M=8¹ÍÑÉ¥¹¥™ä¡Ù…°¤¤íô)™Õ¹Ñ¥½¸•¹% ¥íÉ•ÑÕÉ¸…Ñ”¹¹½Ü ¤¹Ñ½MÑÉ¥¹œ ÌØ¤­5…Ñ ¹É…¹‘½´ ¤¹Ñ½MÑÉ¥¹œ ÌØ¤¹Í±¥” È°Ü¤íô)™Õ¹Ñ¥½¸™µÑH¡¸¥íÉ•ÑÕÉ¸¹•Ü%¹Ñ°¹9Õµ‰•É½Éµ…Ğ •¸µ%8œ¤¹™½Éµ…Ğ¡5…Ñ ¹É½Õ¹¡¸¤¤íô)™Õ¹Ñ¥½¸‘…åÍU¹Ñ¥°¡¥í½¹ÍĞàõ¹•Ü…Ñ”¡¤íà¹Í•Ñ!½ÕÉÌ À°À°À°À¤í½¹ÍĞĞõ¹•Ü…Ñ” ¤íĞ¹Í•Ñ!½ÕÉÌ À°À°À°À¤íÉ•ÑÕÉ¸5…Ñ ¹É½Õ¹ ¡àµĞ¤¼àØĞÀÀÀÀÀ¤íô)™Õ¹Ñ¥½¸™µÑÕ”¡¥í½¹ÍĞ‘…åÌõ‘…åÍU¹Ñ¥°¡¤í¥˜¡‘…åÌğÀ¥É•ÑÕÉ¸=Ù•É‘Õ”‰ä€œ­5…Ñ ¹…‰Ì¡‘…åÌ¤¬œí¥˜¡‘…åÌôôôÀ¥É•ÑÕÉ¸Õ”Ñ½‘…äœí¥˜¡‘…åÌôôôÄ¥É•ÑÕÉ¸Q½µ½ÉÉ½ÜœíÉ•ÑÕÉ¸%¸€œ­‘…åÌ¬œ‘…åÌœíô)™Õ¹Ñ¥½¸ÑåÁ•	…‘”¡Ğ¥íÉ•ÑÕÉ¸œñÍÁ…¸±…ÍÌô‰ÑåÁ”µ‰…‘”ÑåÁ”µ‰…‘”´´œ­Ì¬œˆøœ¬¡ĞôôôÍÕˆœüMÕˆœéĞôôô‰¥±°œü	¥±°œèA•ÉÌœ¤¬œğ½ÍÁ…¸øœíô)™Õ¹Ñ¥½¸ÍÑ…ÑÕÍ	…‘”¡Ì¥íÉ•ÑÕÉ¸œñÍÁ…¸±…ÍÌô‰ÍÑ…ÑÕÌµ‰…‘”ÍÑ…ÑÕÌµ‰…‘”´´œ­Ì¬œˆøœ¬¡Ìôôô…Ñ¥Ù”œüÑ¥Ù”œéÌôôôÍ¹½½é•œüM¹½½é•œè…¹•±±•œ¤¬œğ½ÍÁ…¸øœíô)™Õ¹Ñ¥½¸…Ñ½±½È¡Œ¥í½¹ÍĞ´õì=QPœè…•¹Ğœ°Q•±•½´œè‰±Õ”œ°UÑ¥±¥Ñäœè‰±Õ”œ°¥Ñ¹•ÍÌœèÉ••¸œ°½½œè…µ‰•Èœ°M½™Ñİ…É”œè…•¹Ğœ°I•¹ĞœèÉ•œ°‘Õ…Ñ¥½¸œèÉ••¸œ°…µ¥¹œœèÁÕÉÁ±”œ°%¹ÍÕÉ…¹”œè‰±Õ”œ°=Ñ¡•Èœè…•¹ĞôíÉ•ÑÕÉ¸µmuñğ…•¹Ğœíô)™Õ¹Ñ¥½¸…Ñ%½¸¡Œ¥íÉ•ÑÕÉ¸ŒıŒ¹¡…ÉĞ À¤¹Ñ½UÁÁ•É…Í” ¤èœüœíô)™Õ¹Ñ¥½¸•ÑMMY…È¡¹…µ”¥íÉ•ÑÕÉ¸•Ñ½µÁÕÑ•‘MÑå±”¡‘½Õµ•¹Ğ¹‘½Õµ•¹Ñ±•µ•¹Ğ¤¹•ÑAÉ½Á•ÉÑåY…±Õ”¡¹…µ”¤¹ÑÉ¥´ ¤íô)™Õ¹Ñ¥½¸Ñ½‘…åMÑÈ ¥í½¹ÍĞõ¹•Ü…Ñ” ¤íÉ•ÑÕÉ¸¹•ÑÕ±±e•…È ¤¬œ´œ­MÑÉ¥¹œ¡¹•Ñ5½¹Ñ  ¤¬Ä¤¹Á…‘MÑ…ÉĞ È°œÀœ¤¬œ´œ­MÑÉ¥¹œ¡¹•Ñ…Ñ” ¤¤¹Á…‘MÑ…ÉĞ È°œÀœ¤íô)™Õ¹Ñ¥½¸±½…‘…Ñ„ ¥í•áÁ•¹Í•Ìõ±½… •áÁ•¹Í•Ìœ±mt¤íÁ…åµ•¹ÑÌõ±½… Á…åµ•¹ÑÌœ±mt¤íÍ•ÑÑ¥¹Ìõ±½… Í•ÑÑ¥¹Ìœ±íô¤í‘…¥±å1½Ìõ±½… ‘…¥±å1½Ìœ±mt¤íÉ…Ñ¥¹Ìõ±½… É…Ñ¥¹Ìœ±íô¤íÕÁ‘…Ñ•MÑÉ•…¬ ¤íÉ•¹‘•É…Í¡‰½…É ¤íÉ•¹‘•ÉA…åµ•¹ÑÌ ¤íÉ•¹‘•ÉM•ÑÑ¥¹Ì ¤íÉ•¹‘•É%¹Í¥¡ÑÌ ¤íÉ•¹‘•É…¥±å1½œ ¤íÉ•¹‘•ÉMÑÉ•…¬ ¤íÉ•¹‘•É%¹Í¥¡ÑÍQ…ˆ ¤íô(¼¼€ôôôôôMQI,MeMQ4€ôôôôô)™Õ¹Ñ¥½¸ÕÁ‘…Ñ•MÑÉ•…¬ ¥ì(€½¹ÍĞÑ½‘…äõÑ½‘…åMÑÈ ¤ì(€¥˜¡ÍÑÉ•…­1…ÍÑ…Ñ”ôôõÑ½‘…ä¥É•ÑÕÉ¸ì(€¥˜ …ÍÑÉ•…­1…ÍÑ…Ñ”¥íÍÑÉ•…­½Õ¹ĞôÀíÍÑÉ•…­É••é”ôÄíÍÑÉ•…­1…ÍÑ…Ñ”õÑ½‘…äíÍ…Ù•MÑÉ•…¬ ¤íÉ•ÑÕÉ¸íô(€½¹ÍĞ±…ÍĞõ¹•Ü…Ñ”¡ÍÑÉ•…­1…ÍÑ…Ñ”¤ì(€½¹ÍĞ¹½Üõ¹•Ü…Ñ”¡Ñ½‘…ä¤ì(€½¹ÍĞ‘¥™˜õ5…Ñ ¹É½Õ¹ ¡¹½Üµ±…ÍĞ¤¼àØĞÀÀÀÀÀ¤ì(€¥˜¡‘¥™˜ôôôÄ¥ì(€€€ÍÑÉ•…­½Õ¹Ğ¬¬ì(€€€¥˜¡ÍÑÉ•…­½Õ¹ĞôôôÜ¥ÍÑÉ•…­É••é”õ5…Ñ ¹µ…à¡ÍÑÉ•…­É••é”°Ä¤ì(€€€¥˜¡ÍÑÉ•…­½Õ¹ĞôôôÌÀ¥ÍÑÉ•…­É••é”õ5…Ñ ¹µ…à¡ÍÑÉ•…­É••é”°È¤ì(€€€¥˜¡ÍÑÉ•…­½Õ¹ĞôôôİññÍÑÉ•…­½Õ¹ĞôôôÌÁññÍÑÉ•…­½Õ¹ĞôôôÄÀÀ¥ÑÉ…­Ù•¹Ğ ÍÑÉ•…­}µ¥±•ÍÑ½¹”œ°•¹…•µ•¹Ğœ±í‘…åÌéÍÑÉ•…­½Õ¹Ñô¤ì(€€€ÍÑÉ•…­1…ÍÑ…Ñ”õÑ½‘…äì(€õ•±Í”¥˜¡‘¥™˜øÄ¥ì(€€€¥˜¡ÍÑÉ•…­É••é”øÀ˜™‘¥™˜ôôôÈ¥ì(€€€€€ÍÑÉ•…­É••é”´´ì(€€€€€ÍÑÉ•…­½Õ¹Ğ¬¬ì(€€€€€ÍÑÉ•…­1…ÍÑ…Ñ”õÑ½‘…äì(€€€õ•±Í•ì(€€€€€ÍÑÉ•…­½Õ¹ĞôÄì(€€€€€ÍÑÉ•…­É••é”ôÄì(€€€€€ÍÑÉ•…­1…ÍÑ…Ñ”õÑ½‘…äì(€€€ô(€ô(€Í…Ù•MÑÉ•…¬ ¤ì)ô)™Õ¹Ñ¥½¸Í…Ù•MÑÉ•…¬ ¥íÍ…Ù” ÍÑÉ•…¬œ±í½Õ¹ĞéÍÑÉ•…­½Õ¹Ğ±™É••é”éÍÑÉ•…­É••é”±±…ÍÑ…Ñ”éÍÑÉ•…­1…ÍÑ…Ñ•ô¤íô)™Õ¹Ñ¥½¸±½…‘MÑÉ•…¬ ¥í½¹ÍĞÌõ±½… ÍÑÉ•…¬œ±íô¤íÍÑÉ•…­½Õ¹ĞõÌ¹½Õ¹ÑñğÀíÍÑÉ•…­É••é”õÌ¹™É••é•ñğÀíÍÑÉ•…­1…ÍÑ…Ñ”õÌ¹±…ÍÑ…Ñ•ñğœœíô)™Õ¹Ñ¥½¸É•¹‘•ÉMÑÉ•…¬ ¥ì(€½¹ÍĞ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÍÑÉ•…­	…‘”œ¤ì(€¥˜ …•°¥É•ÑÕÉ¸ì(€±•Ğ™±…µ”ôŸÂ~R”œì(€•°¹¥¹¹•É!Q50ôœñÍÁ…¸±…ÍÌô‰ÍÑÉ•…¬µ™±…µ”ˆøœ­™±…µ”¬œğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰ÍÑÉ•…¬µ½Õ¹Ğˆøœ­ÍÑÉ•…­½Õ¹Ğ¬œğ½ÍÁ…¸øœ¬¡ÍÑÉ•…­É••é”øÀüœñÍÁ…¸±…ÍÌô‰ÍÑÉ•…¬µ™É••é”ˆÑ¥Ñ±”ô‰MÑÉ•…¬™É••é”…Ù…¥±…‰±”ˆûŠv¾â<ğ½ÍÁ…¸øœèœœ¤ì(€•°¹±…ÍÍ9…µ”õÍÑÉ•…­½Õ¹ĞøÀüÍÑÉ•…¬µ‰…‘”…Ñ¥Ù”œèÍÑÉ•…¬µ‰…‘”œì)ô((¼¼€ôôôôô%1d-!I!1=€ôôôôô)™Õ¹Ñ¥½¸ÅÕ¥­1½œ ¥ì(€½¹ÍĞ…µĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­µ½Õ¹Ğœ¤¹Ù…±Õ”ì(€½¹ÍĞ…Ğõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­…Ğœ¤¹Ù…±Õ”ì(€½¹ÍĞ¹½Ñ”õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­9½Ñ”œ¤¹Ù…±Õ”¹ÑÉ¥´ ¤ì(€¥˜ ……µÑññÁ…ÉÍ•%¹Ğ¡…µĞ¤ğôÀ¥íÍ¡½İQ½…ÍĞ ¹Ñ•È…¸…µ½Õ¹Ğœ¤íÉ•ÑÕÉ¸íô(€½¹ÍĞ•¹ÑÉäõí¥é•¹% ¤±…µ½Õ¹ĞéÁ…ÉÍ•%¹Ğ¡…µĞ¤±…Ñ•½Éäé…Ññğ=Ñ¡•Èœ±¹½Ñ”é¹½Ñ•ñğœœ±‘…Ñ”éÑ½‘…åMÑÈ ¤±Ñ¥µ”é¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¥ôì(€‘…¥±å1½Ì¹Õ¹Í¡¥™Ğ¡•¹ÑÉä¤ì(€Í…Ù” ‘…¥±å1½Ìœ±‘…¥±å1½Ì¤ì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­µ½Õ¹Ğœ¤¹Ù…±Õ”ôœœì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­9½Ñ”œ¤¹Ù…±Õ”ôœœì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÅÕ¥­…Ğœ¤¹Ù…±Õ”ô½½œì(€É•¹‘•É…¥±å1½œ ¤ì(€É•¹‘•É%¹Í¥¡ÑÍQ…ˆ ¤ì(€ÑÉ…­Ù•¹Ğ ‘…¥±å}±½œœ°•¹…•µ•¹Ğœ±í…µ½Õ¹ĞéÁ…ÉÍ•%¹Ğ¡…µĞ¤±…Ñ•½Éäé…Ññğ=Ñ¡•Èô¤ì(€Í¡½İQ½…ÍĞ 1½•ƒŠ
+äœ­™µÑH¡Á…ÉÍ•%¹Ğ¡…µĞ¤¤¤ì)ô)™Õ¹Ñ¥½¸‘•±•Ñ•…¥±å1½œ¡¥¥í‘…¥±å1½Ìõ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôù”¹¥„ôõ¥¤íÍ…Ù” ‘…¥±å1½Ìœ±‘…¥±å1½Ì¤íÉ•¹‘•É…¥±å1½œ ¤íÉ•¹‘•É%¹Í¥¡ÑÍQ…ˆ ¤íÍ¡½İQ½…ÍĞ •±•Ñ•œ¤íô)™Õ¹Ñ¥½¸É•¹‘•É…¥±å1½œ ¥ì(€½¹ÍĞ±¥ÍĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ‘…¥±å1½1¥ÍĞœ¤ì(€¥˜ …±¥ÍĞ¥É•ÑÕÉ¸ì(€½¹ÍĞÑ½‘…äõÑ½‘…åMÑÈ ¤ì(€½¹ÍĞÑ½‘…å¹ÑÉ¥•Ìõ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôù”¹‘…Ñ”ôôõÑ½‘…ä¤ì(€½¹ÍĞÑ½‘…åQ½Ñ…°õÑ½‘…å¹ÑÉ¥•Ì¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ‘…¥±åQ½Ñ…°œ¤¹Ñ•áÑ½¹Ñ•¹ĞôŸŠ
+äœ­™µÑH¡Ñ½‘…åQ½Ñ…°¤ì(€¥˜¡Ñ½‘…å¹ÑÉ¥•Ì¹±•¹Ñ ôôôÀ¥í±¥ÍĞ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼ÍÁ•¹‘¥¹œ±½•Ñ½‘…äğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íô(€±¥ÍĞ¹¥¹¹•É!Q50õÑ½‘…å¹ÑÉ¥•Ì¹µ…À ¡”±¤¤ôùì(€€€½¹ÍĞØõ…Ñ½±½È¡”¹…Ñ•½Éä¤ì(€€€É•ÑÕÉ¸€œñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•´ˆÍÑå±”ôˆ´µ¤èœ­¤¬œˆøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}¥½¸ˆÍÑå±”ô‰‰…­É½Õ¹éÙ…È ´´œ­Ø¬œµ‘¥´¤í½±½ÈéÙ…È ´´œ­Ø¬œ¤ˆøœ­…Ñ%½¸¡”¹…Ñ•½Éä¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}¥¹™¼ˆøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}…Ğˆøœ­”¹…Ñ•½Éä¬¡”¹¹½Ñ”üœƒ
+Ü€ñÍÁ…¸±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}¹½Ñ”ˆøœ­”¹¹½Ñ”¬œğ½ÍÁ…¸øœèœœ¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}Ñ¥µ”ˆøœ­¹•Ü…Ñ”¡”¹Ñ¥µ”¤¹Ñ½1½…±•Q¥µ•MÑÉ¥¹œ •¸µ%8œ±í¡½ÕÈè¹Õµ•É¥Œœ±µ¥¹ÕÑ”èœÈµ‘¥¥Ğô¤¬œğ½‘¥Øøğ½‘¥Øøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¥Ñ•µ}}…µ½Õ¹ĞˆûŠ
+äœ­™µÑH¡”¹…µ½Õ¹Ğ¤¬œğ½‘¥Øøñ‰ÕÑÑ½¸±…ÍÌô‰‘•°µ‰Ñ¸ˆ½¹±¥¬ô‰‘•±•Ñ•…¥±å1½œ¡pœœ­”¹¥¬pœ¤ˆùàğ½‰ÕÑÑ½¸øğ½‘¥Øøœì(€ô¤¹©½¥¸ œœ¤ì(€½¹ÍĞİ••­Q½Ñ…°õ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôùí½¹ÍĞõ¹•Ü…Ñ”¡”¹‘…Ñ”¤í½¹ÍĞ¹½Üõ¹•Ü…Ñ” ¤íÉ•ÑÕÉ¸¡¹½Üµ¤¼àØĞÀÀÀÀÀğôÜíô¤¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€½¹ÍĞİĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% İ••­Q½Ñ…°œ¤í¥˜¡İĞ¥İĞ¹Ñ•áÑ½¹Ñ•¹ĞôŸŠ
+äœ­™µÑH¡İ••­Q½Ñ…°¤ì)ô)™Õ¹Ñ¥½¸É•¹‘•É…¥±å!¥ÍÑ½Éä ¥ì(€½¹ÍĞ±¥ÍĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ‘…¥±å!¥ÍÑ½Éå1¥ÍĞœ¤ì(€¥˜ …±¥ÍĞ¥É•ÑÕÉ¸ì(€¥˜¡‘…¥±å1½Ì¹±•¹Ñ ôôôÀ¥í±¥ÍĞ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼¡¥ÍÑ½Éäå•Ğğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íô(€½¹ÍĞ‰å…Ñ”õíôì(€‘…¥±å1½Ì¹™½É… ¡”ôùí¥˜ …‰å…Ñ•m”¹‘…Ñ•t¥‰å…Ñ•m”¹‘…Ñ•tõmtí‰å…Ñ•m”¹‘…Ñ•t¹ÁÕÍ ¡”¤íô¤ì(€½¹ÍĞ‘…Ñ•Ìõ=‰©•Ğ¹­•åÌ¡‰å…Ñ”¤¹Í½ÉĞ ¤¹É•Ù•ÉÍ” ¤¹Í±¥” À°ÄĞ¤ì(€±¥ÍĞ¹¥¹¹•É!Q50õ‘…Ñ•Ì¹µ…À¡‘…Ñ”ôùì(€€€½¹ÍĞ•¹ÑÉ¥•Ìõ‰å…Ñ•m‘…Ñ•tì(€€€½¹ÍĞÑ½Ñ…°õ•¹ÑÉ¥•Ì¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€€€½¹ÍĞõ¹•Ü…Ñ”¡‘…Ñ”¤ì(€€€½¹ÍĞ±…‰•°õ¹Ñ½1½…±•…Ñ•MÑÉ¥¹œ •¸µ%8œ±í‘…äè¹Õµ•É¥Œœ±µ½¹Ñ èÍ¡½ÉĞœ±İ••­‘…äèÍ¡½ÉĞô¤ì(€€€½¹ÍĞÑ½‘…äõÑ½‘…åMÑÈ ¤ôôõ‘…Ñ”ì(€€€É•ÑÕÉ¸€œñ‘¥Ø±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ‘…äˆøñ‘¥Ø±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ‘…å}}¡•…ˆøñÍÁ…¸±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ‘…å}}‘…Ñ”ˆøœ¬¡Ñ½‘…äüQ½‘…äœé±…‰•°¤¬œğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ‘…å}}Ñ½Ñ…°ˆûŠ
+äœ­™µÑH¡Ñ½Ñ…°¤¬œğ½ÍÁ…¸øğ½‘¥Øøœ­•¹ÑÉ¥•Ì¹µ…À¡”ôøœñ‘¥Ø±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ¥Ñ•´ˆøñÍÁ…¸±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ¥Ñ•µ}}…Ğˆøœ­”¹…Ñ•½Éä¬¡”¹¹½Ñ”üœƒ
+Ü€œ­”¹¹½Ñ”èœœ¤¬œğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰‘…¥±äµ¡¥ÍĞµ¥Ñ•µ}}…µĞˆûŠ
+äœ­™µÑH¡”¹…µ½Õ¹Ğ¤¬œğ½ÍÁ…¸øğ½‘¥Øøœ¤¹©½¥¸ œœ¤¬œğ½‘¥Øøœì(€ô¤¹©½¥¸ œœ¤ì)ô((¼¼€ôôôôôM5IP%9M%!QL€ôôôôô)™Õ¹Ñ¥½¸É•¹‘•É%¹Í¥¡ÑÍQ…ˆ ¥ì(€½¹ÍĞ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ¥¹Í¥¡ÑÍ…É‘Ìœ¤ì(€¥˜ …•°¥É•ÑÕÉ¸ì(€½¹ÍĞ¥¹Í¥¡ÑÌõ•¹•É…Ñ•%¹Í¥¡ÑÌ ¤ì(€¥˜¡¥¹Í¥¡ÑÌ¹±•¹Ñ ôôôÀ¥í•°¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù‘•áÁ•¹Í•Ì…¹±½œ‘…¥±äÍÁ•¹‘¥¹œÑ¼Í•”¥¹Í¥¡ÑÌğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íô(€•°¹¥¹¹•É!Q50õ¥¹Í¥¡ÑÌ¹µ…À ¡¥¹Ì±¤¤ôøœñ‘¥Ø±…ÍÌô‰¥¹Í¥¡Ğµ…É¥¹Í¥¡Ğµ…É´´œ­¥¹Ì¹ÑåÁ”¬œˆÍÑå±”ôˆ´µ¤èœ­¤¬œˆøñ‘¥Ø±…ÍÌô‰¥¹Í¥¡Ğµ…É‘}}¥½¸ˆøœ­¥¹Ì¹¥½¸¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰¥¹Í¥¡Ğµ…É‘}}‰½‘äˆøñ‘¥Ø±…ÍÌô‰¥¹Í¥¡Ğµ…É‘}}Ñ¥Ñ±”ˆøœ­¥¹Ì¹Ñ¥Ñ±”¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰¥¹Í¥¡Ğµ…É‘}}‘•ÍŒˆøœ­¥¹Ì¹‘•ÍŒ¬œğ½‘¥Øøğ½‘¥Øøğ½‘¥Øøœ¤¹©½¥¸ œœ¤ì)ô)™Õ¹Ñ¥½¸•¹•É…Ñ•%¹Í¥¡ÑÌ ¥ì(€½¹ÍĞ½ÕĞõmtì(€½¹ÍĞÑ½‘…äõÑ½‘…åMÑÈ ¤ì(€½¹ÍĞÑ½‘…å¹ÑÉ¥•Ìõ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôù”¹‘…Ñ”ôôõÑ½‘…ä¤ì(€½¹ÍĞÑ½‘…åQ½Ñ…°õÑ½‘…å¹ÑÉ¥•Ì¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€½¹ÍĞ¹½Üõ¹•Ü…Ñ” ¤ì(€½¹ÍĞÑ¡¥Í]••¬õ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôùí½¹ÍĞõ¹•Ü…Ñ”¡”¹‘…Ñ”¤íÉ•ÑÕÉ¸¡¹½Üµ¤¼àØĞÀÀÀÀÀğôíô¤ì(€½¹ÍĞ±…ÍÑ]••¬õ‘…¥±å1½Ì¹™¥±Ñ•È¡”ôùí½¹ÍĞõ¹•Ü…Ñ”¡”¹‘…Ñ”¤í½¹ÍĞ‘¥™˜ô¡¹½Üµ¤¼àØĞÀÀÀÀÀíÉ•ÑÕÉ¸‘¥™˜øÜ˜™‘¥™˜ğôÄĞíô¤ì(€½¹ÍĞİ••­Q½Ñ…°õÑ¡¥Í]••¬¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€½¹ÍĞ±…ÍÑ]••­Q½Ñ…°õ±…ÍÑ]••¬¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€½¹ÍĞ…Ñ¥Ù”õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤ì(€½¹ÍĞÍÕ‰5½¹Ñ¡±äõ…Ñ¥Ù”¹É•‘Õ” ¡Ì±”¤ôùí±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¥´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀíÉ•ÑÕÉ¸Ì­´íô°À¤ì(€½¹ÍĞÍÕ‰e•…É±äõÍÕ‰5½¹Ñ¡±ä¨ÄÈì(€¥˜¡ÍÕ‰e•…É±äøÀ¥ì(€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è…µ‰•Èœ±¥½¸èŸÂ~JÀœ±Ñ¥Ñ±”èe•…É±äÍÕ‰ÍÉ¥ÁÑ¥½¸‰ÕÉ¸èƒŠ
+äœ­™µÑH¡ÍÕ‰e•…É±ä¤±‘•ÍŒèQ¡…ÑpÌƒŠ
+äœ­™µÑH¡ÍÕ‰e•…É±ä¼ÄÈ¤¬œ•Ù•Éäµ½¹Ñ ½¸ÍÕ‰ÍÉ¥ÁÑ¥½¹Ì…±½¹”¸…¹•±±¥¹œ•Ù•¸½¹”½Õ±Í…Ù”å½ÔÑ¡½ÕÍ…¹‘Ì¸œô¤ì(€ô(€¥˜¡İ••­Q½Ñ…°øÀ˜™±…ÍÑ]••­Q½Ñ…°øÀ¥ì(€€€½¹ÍĞÁĞõ5…Ñ ¹É½Õ¹ ¡İ••­Q½Ñ…°µ±…ÍÑ]••­Q½Ñ…°¤½±…ÍÑ]••­Q½Ñ…°¨ÄÀÀ¤ì(€€€¥˜¡ÁĞøÈÀ¥ì(€€€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”èÉ•œ±¥½¸èŸÂ~N œ±Ñ¥Ñ±”èe½ÕpÉ”ÍÁ•¹‘¥¹œ€œ­ÁĞ¬œ”µ½É”Ñ¡¥Ìİ••¬œ±‘•ÍŒèŸŠ
+äœ­™µÑH¡İ••­Q½Ñ…°¤¬œÑ¡¥Ìİ••¬ÙÌƒŠ
+äœ­™µÑH¡±…ÍÑ]••­Q½Ñ…°¤¬œ±…ÍĞİ••¬¸Q¥µ”Ñ¼Í±½Ü‘½İ¸üô¤ì(€€€õ•±Í”¥˜¡ÁĞğ´ÈÀ¥ì(€€€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”èÉ••¸œ±¥½¸èŸÂ~N$œ±Ñ¥Ñ±”èe½ÕpÉ”ÍÁ•¹‘¥¹œ€œ­5…Ñ ¹…‰Ì¡ÁĞ¤¬œ”±•ÍÌÑ¡¥Ìİ••¬œ±‘•ÍŒèŸŠ
+äœ­™µÑH¡İ••­Q½Ñ…°¤¬œÑ¡¥Ìİ••¬ÙÌƒŠ
+äœ­™µÑH¡±…ÍÑ]••­Q½Ñ…°¤¬œ±…ÍĞİ••¬¸9¥”½¹ÑÉ½°„ô¤ì(€€€õ•±Í•ì(€€€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è‰±Õ”œ±¥½¸èŸŠj[¾â<œ±Ñ¥Ñ±”èMÁ•¹‘¥¹œ¥ÌÍÑ…‰±”œ±‘•ÍŒèŸŠ
+äœ­™µÑH¡İ••­Q½Ñ…°¤¬œÑ¡¥Ìİ••¬ÙÌƒŠ
+äœ­™µÑH¡±…ÍÑ]••­Q½Ñ…°¤¬œ±…ÍĞİ••¬¸½¹Í¥ÍÑ•¹Ğ¸ô¤ì(€€€ô(€õ•±Í”¥˜¡İ••­Q½Ñ…°øÀ¥ì(€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è‰±Õ”œ±¥½¸èŸÂ~Nœ±Ñ¥Ñ±”èŸŠ
+äœ­™µÑH¡İ••­Q½Ñ…°¤¬œÍÁ•¹ĞÑ¡¥Ìİ••¬œ±‘•ÍŒè-••À±½¥¹œ‘…¥±äÑ¼Í•”İ••­±äÑÉ•¹‘Ì…¹Á…ÑÑ•É¹Ì¸ô¤ì(€ô(€¥˜¡Ñ½‘…åQ½Ñ…°øÀ¥ì(€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è…•¹Ğœ±¥½¸èŸÂ~nHœ±Ñ¥Ñ±”èŸŠ
+äœ­™µÑH¡Ñ½‘…åQ½Ñ…°¤¬œÍÁ•¹ĞÑ½‘…äœ±‘•ÍŒéÑ½‘…å¹ÑÉ¥•Ì¹±•¹Ñ ¬œÑÉ…¹Í…Ñ¥½¸œ¬¡Ñ½‘…å¹ÑÉ¥•Ì¹±•¹Ñ øÄüÌœèœœ¤¬œÑ½‘…ä¸€œ­%1e}QL¹µ…À¡Œôùí½¹ÍĞĞõÑ½‘…å¹ÑÉ¥•Ì¹™¥±Ñ•È¡”ôù”¹…Ñ•½ÉäôôõŒ¤¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤íÉ•ÑÕÉ¸ĞøÀıŒ¬œèƒŠ
+äœ­™µÑH¡Ğ¤é¹Õ±°íô¤¹™¥±Ñ•È¡	½½±•…¸¤¹©½¥¸ œ°€œ¤¬œ¸ô¤ì(€ô(€¥˜¡Ñ¡¥Í]••¬¹±•¹Ñ øÀ¥ì(€€€½¹ÍĞ…Ñ5…Àõíôì(€€€Ñ¡¥Í]••­•… ¡”ôùí…Ñ5…Ám”¹…Ñ•½Éåtô¡…Ñ5…Ám”¹…Ñ•½ÉåuñğÀ¤­”¹…µ½Õ¹Ğíô¤ì(€€€½¹ÍĞÑ½Á…Ğõ=‰©•Ğ¹•¹ÑÉ¥•Ì¡…Ñ5…À¤¹Í½ÉĞ ¡„±ˆ¤ôù‰lÅtµ…lÅt¥lÁtì(€€€¥˜¡Ñ½Á…Ğ¥ì(€€€€€½¹ÍĞÁÑ=™]••¬õ5…Ñ ¹É½Õ¹¡Ñ½Á…ÑlÅt½İ••­Q½Ñ…°¨ÄÀÀ¤ì(€€€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”èÁÕÉÁ±”œ±¥½¸èŸÂ~>œ±Ñ¥Ñ±”éÑ½Á…ÑlÁt¬œ¥Ìå½ÕÈÑ½À…Ñ•½Éäœ±‘•ÍŒèŸŠ
+äœ­™µÑH¡Ñ½Á…ÑlÅt¤¬œÑ¡¥Ìİ••¬ƒŠP€œ­ÁÑ=™]••¬¬œ”½˜å½ÕÈİ••­±äÍÁ•¹‘¥¹œ¸ô¤ì(€€€ô(€ô(€¥˜¡Ñ½‘…åQ½Ñ…°øÀ˜™ÍÕ‰5½¹Ñ¡±äøÀ¥ì(€€€½¹ÍĞ‘…åÌõ5…Ñ ¹É½Õ¹¡Ñ½‘…åQ½Ñ…°¼¡ÍÕ‰5½¹Ñ¡±ä¼ÌÀ¤¤ì(€€€¥˜¡‘…åÌøôÄ¥ì(€€€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è…µ‰•Èœ±¥½¸èŸÂ~Rœ±Ñ¥Ñ±”èQ½‘…åpÌÍÁ•¹‘¥¹œ€ô€œ­‘…åÌ¬œ‘…äœ¬¡‘…åÌøÄüÌœèœœ¤¬œ½˜ÍÕ‰ÍÉ¥ÁÑ¥½¹Ìœ±‘•ÍŒèe½ÔÍÁ•¹ĞƒŠ
+äœ­™µÑH¡Ñ½‘…åQ½Ñ…°¤¬œÑ½‘…ä¸e½ÕÈÍÕ‰ÍÉ¥ÁÑ¥½¹Ì½ÍĞƒŠ
+äœ­™µÑH¡5…Ñ ¹É½Õ¹¡ÍÕ‰5½¹Ñ¡±ä¼ÌÀ¤¤¬œ½‘…ä¸ô¤ì(€€€ô(€ô(€¥˜¡…Ñ¥Ù”¹±•¹Ñ øÀ¥ì(€€€½¹ÍĞµ½ÍÑáÀõ…Ñ¥Ù”¹É•‘Õ” ¡„±ˆ¤ôùí±•Ğµ„õ„¹…µ½Õ¹Ğí¥˜¡„¹å±”ôôôå•…É±äœ¥µ„õ„¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡„¹å±”ôôôÅÕ…ÉÑ•É±äœ¥µ„õ„¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡„¹å±”ôôô½¹•Ñ¥µ”œ¥µ„ôÀí±•Ğµˆõˆ¹…µ½Õ¹Ğí¥˜¡ˆ¹å±”ôôôå•…É±äœ¥µˆõˆ¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡ˆ¹å±”ôôôÅÕ…ÉÑ•É±äœ¥µˆõˆ¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡ˆ¹å±”ôôô½¹•Ñ¥µ”œ¥µˆôÀíÉ•ÑÕÉ¸µˆùµ„ıˆé„íô¤ì(€€€±•ĞµµĞõµ½ÍÑáÀ¹…µ½Õ¹Ğí¥˜¡µ½ÍÑáÀ¹å±”ôôôå•…É±äœ¥µµĞõµ½ÍÑáÀ¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡µ½ÍÑáÀ¹å±”ôôôÅÕ…ÉÑ•É±äœ¥µµĞõµ½ÍÑáÀ¹…µ½Õ¹Ğ¼Ìì(€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”èÉ•œ±¥½¸èŸŠjƒ¾â<œ±Ñ¥Ñ±”éµ½ÍÑáÀ¹¹…µ”¬œ½ÍÑÌƒŠ
+äœ­™µÑH¡µµĞ¤¬œ½µ½¹Ñ œ±‘•ÍŒèe½ÕÈµ½ÍĞ•áÁ•¹Í¥Ù”…Ñ¥Ù”ÍÕ‰ÍÉ¥ÁÑ¥½¸¸ƒŠ
+äœ­™µÑH¡µµĞ¨ÄÈ¤¬œ½å•…È¸]½ÉÑ ¥Ğüô¤ì(€ô(€¥˜¡‘…¥±å1½Ì¹±•¹Ñ øôÌ¥ì(€€€½¹ÍĞ‘…Ñ•Ìõl¸¸¹¹•ÜM•Ğ¡‘…¥±å1½Ì¹µ…À¡”ôù”¹‘…Ñ”¤¥tì(€€€½¹ÍĞÑ½Ñ…±±°õ‘…¥±å1½Ì¹É•‘Õ” ¡Ì±”¤ôùÌ­”¹…µ½Õ¹Ğ°À¤ì(€€€½¹ÍĞ…Ùœõ5…Ñ ¹É½Õ¹¡Ñ½Ñ…±±°½‘…Ñ•Ì¹±•¹Ñ ¤ì(€€€½ÕĞ¹ÁÕÍ ¡íÑåÁ”è‰±Õ”œ±¥½¸èŸÂ~N(œ±Ñ¥Ñ±”èÙ•É…”‘…¥±äÍÁ•¹‘¥¹œèƒŠ
+äœ­™µÑH¡…Ùœ¤±‘•ÍŒèÉ½ÍÌ€œ­‘…Ñ•Ì¹±•¹Ñ ¬œ‘…åÌ½˜ÑÉ…­¥¹œ¸Q½Ñ…°ƒŠ
+äœ­™µÑH¡Ñ½Ñ…±±°¤¬œ±½•¸ô¤ì(€ô(€É•ÑÕÉ¸½ÕĞ¹Í±¥” À°Ø¤ì)ô((¼¼€ôôôôôMU	MI%AQ%=8IY%\€¼IQ%9€ôôôôô)™Õ¹Ñ¥½¸•ÑI…Ñ¥¹AÉ½µÁĞ ¥ì(€½¹ÍĞ…Ñ¥Ù”õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤ì(€¥˜¡…Ñ¥Ù”¹±•¹Ñ ôôôÀ¥É•ÑÕÉ¸¹Õ±°ì(€½¹ÍĞÑ½‘…äõÑ½‘…åMÑÈ ¤ì(€™½È¡½¹ÍĞ”½˜…Ñ¥Ù”¥ì(€€€½¹ÍĞ±…ÍÑI…Ñ•õÉ…Ñ¥¹Ím”¹¥‘tì(€€€¥˜ …±…ÍÑI…Ñ•‘ññ‘…åÍM¥¹”¡±…ÍÑI…Ñ•¹‘…Ñ”¤øôÜ¥ì(€€€€€É•ÑÕÉ¸”ì(€€€ô(€ô(€É•ÑÕÉ¸¹Õ±°ì)ô)™Õ¹Ñ¥½¸‘…åÍM¥¹”¡‘…Ñ•MÑÈ¥í½¹ÍĞõ¹•Ü…Ñ”¡‘…Ñ•MÑÈ¤í½¹ÍĞ¹½Üõ¹•Ü…Ñ” ¤í¹Í•Ñ!½ÕÉÌ À°À°À°À¤í¹½Ü¹Í•Ñ!½ÕÉÌ À°À°À°À¤íÉ•ÑÕÉ¸5…Ñ ¹É½Õ¹ ¡¹½Üµ¤¼àØĞÀÀÀÀÀ¤íô)™Õ¹Ñ¥½¸Í¡½İI…Ñ¥¹AÉ½µÁĞ ¥ì(€½¹ÍĞ”õ•ÑI…Ñ¥¹AÉ½µÁĞ ¤ì(€¥˜!”¥í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É…Ñ¥¹AÉ½µÁĞœ¤¹ÍÑå±”¹‘¥ÍÁ±…äô¹½¹”œíÉ•ÑÕÉ¸íô(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É…Ñ¥¹AÉ½µÁĞœ¤¹ÍÑå±”¹‘¥ÍÁ±…äô‰±½¬œì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É…Ñ¥¹9…µ”œ¤¹Ñ•áÑ½¹Ñ•¹Ğõ”¹¹…µ”ì(€‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É…Ñ¥¹9…µ”œ¤¹‘…Ñ…Í•Ğ¹•áÁ•¹Í•%õ”¹¥ì(€‘½Õµ•¹Ğ¹ÅÕ•ÉåM•±•Ñ½É±° œ¹ÍÑ…Èµ‰Ñ¸œ¤¹™½É… ¡ÌôùÌ¹‘…Ñ…Í•Ğ¹Í•±•Ñ•ôœœ¤ì)ô)™Õ¹Ñ¥½¸É…Ñ•MÕˆ¡ÍÑ…ÉÌ¥ì(€‘½Õµ•¹Ğ¹ÅÕ•ÉåM•±•Ñ½É±° œ¹ÍÑ…Èµ‰Ñ¸œ¤¹™½É… ¡Ìôùì(€€€Ì¹‘…Ñ…Í•Ğ¹Í•±•Ñ•õÁ…ÉÍ•%¹Ğ¡Ì¹‘…Ñ…Í•Ğ¹ÍÑ…È¤ğõÍÑ…ÉÌüœÄœèœœì(€ô¤ì)ô)™Õ¹Ñ¥½¸ÍÕ‰µ¥ÑI…Ñ¥¹œ ¥ì(€½¹ÍĞ¹…µ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É…Ñ¥¹9…µ”œ¤ì(€½¹ÍĞ¥õ¹…µ•°¹‘…Ñ…Í•Ğ¹•áÁ•¹Í•%ì(€½¹ÍĞÍ•±•Ñ•õ‘½Õµ•¹Ğ¹ÅÕ•ÉåM•±•Ñ½È œ¹ÍÑ…Èµ‰Ñ¹m‘…Ñ„µÍ•±•Ñ•ôˆÄ‰tœ¤ì(€¥˜ …Í•±•Ñ•¥íÍ¡½İQ½…ÍĞ Q…À„ÍÑ…ÈÑ¼É…Ñ”œ¤íÉ•ÑÕÉ¸íô(€½¹ÍĞÍÑ…ÉÌõÁ…ÉÍ•%¹Ğ¡Í•±•Ñ•¹‘…Ñ…Í•Ğ¹ÍÑ…È¤ì(€¥˜ …É…Ñ¥¹Ím¥‘t¥É…Ñ¥¹Ím¥‘tõíôì(€É…Ñ¥¹Ím¥‘t¹±…ÍÑI…Ñ¥¹œõÍÑ…ÉÌì(€É…Ñ¥¹Ím¥‘t¹‘…Ñ”õÑ½‘…åMÑÈ ¤ì(€É…Ñ¥¹Ím¥‘t¹¡¥ÍÑ½ÉäõÉ…Ñ¥¹Ím¥‘t¹¡¥ÍÑ½Éåññmtì(€É…Ñ¥¹Ím¥‘t¹¡¥ÍÑ½Éä¹ÁÕÍ ¡íÍÑ…ÉÌ±‘…Ñ”éÑ½‘…åMÑÈ ¥ô¤ì(€Í…Ù” É…Ñ¥¹Ìœ±É…Ñ¥¹Ì¤ì(€Í¡½İI…Ñ¥¹AÉ½µÁĞ ¤ì(€É•¹‘•ÉMÕ‰I•Ù¥•Ü ¤ì(€ÑÉ…­Ù•¹Ğ É…Ñ•}ÍÕ‰ÍÉ¥ÁÑ¥½¸œ°•¹…•µ•¹Ğœ±íÍÑ…ÉÌéÍÑ…ÉÍô¤ì(€Í¡½İQ½…ÍĞ I…Ñ•€œ­ÍÑ…ÉÌ¬œƒŠ¶@œ¤ì)ô)™Õ¹Ñ¥½¸Í­¥ÁI…Ñ¥¹œ ¥íÍ¡½İI…Ñ¥¹AÉ½µÁĞ ¤íÍ¡½İQ½…ÍĞ M­¥ÁÁ•œ¤íô)™Õ¹Ñ¥½¸É•¹‘•ÉMÕ‰I•Ù¥•Ü ¥ì(€½¹ÍĞ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÍÕ‰I•Ù¥•İ1¥ÍĞœ¤ì(€¥˜ …•°¥É•ÑÕÉ¸ì(€½¹ÍĞ…Ñ¥Ù”õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤ì(€¥˜¡…Ñ¥Ù”¹±•¹Ñ ôôôÀ¥í•°¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼…Ñ¥Ù”ÍÕ‰ÍÉ¥ÁÑ¥½¹Ìğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íô(€½¹ÍĞ¥Ñ•µÌõ…Ñ¥Ù”¹µ…À¡”ôùì(€€€±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¥´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀì(€€€½¹ÍĞÈõÉ…Ñ¥¹Ím”¹¥‘tì(€€€½¹ÍĞ…ÙHõÈ˜™È¹¡¥ÍÑ½Éäı5…Ñ ¹É½Õ¹¡È¹¡¥ÍÑ½Éä¹É•‘Õ” ¡Ì± ¤ôùÌ­ ¹ÍÑ…ÉÌ°À¤½È¹¡¥ÍÑ½Éä¹±•¹Ñ ¨ÄÀ¤¼ÄÀé¹Õ±°ì(€€€½¹ÍĞÁ•ÉUÍ”õ…ÙH˜™…ÙHøÀı5…Ñ ¹É½Õ¹¡´¼¡…ÙH¼Ô¨ÌÀ¤¤é¹Õ±°ì(€€€É•ÑÕÉ¸í”±´±…ÙH±Á•ÉUÍ•ôì(€ô¤¹™¥±Ñ•È¡àôùà¹…ÙH¤¹Í½ÉĞ ¡„±ˆ¤ôø¡„¹…ÙIñğÔ¤´¡ˆ¹…ÙIñğÔ¤¤ì(€¥˜¡¥Ñ•µÌ¹±•¹Ñ ôôôÀ¥í•°¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆùI…Ñ”å½ÕÈÍÕ‰ÍÉ¥ÁÑ¥½¹ÌÑ¼Í•”½ÍĞµÁ•ÈµÕÍ”ğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íô(€•°¹¥¹¹•É!Q50õ¥Ñ•µÌ¹µ…À¡àôùì(€€€½¹ÍĞÍÑ…ÉÌôŸŠ¶@œ¹É•Á•…Ğ¡5…Ñ ¹É½Õ¹¡à¹…ÙH¤¤ì(€€€½¹ÍĞÁÕQáĞõà¹Á•ÉUÍ”üŸŠ
+äœ­™µÑH¡à¹Á•ÉUÍ”¤¬œ½ÕÍ”œèœœì(€€€½¹ÍĞ±½İI…Ñ¥¹œõà¹…ÙHğôÈ¸Ôì(€€€É•ÑÕÉ¸€œñ‘¥Ø±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•´œ¬¡±½İI…Ñ¥¹œüœÍÕˆµÉ•Ù¥•Üµ¥Ñ•´´µ±½Üœèœœ¤¬œˆøñ‘¥Ø±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•µ}}¹…µ”ˆøœ­à¹”¹¹…µ”¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•µ}}É…Ñ¥¹œˆøœ­ÍÑ…ÉÌ¬œ€ñÍÁ…¸±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•µ}}…Ùœˆøœ­à¹…ÙH¬œğ½ÍÁ…¸øğ½‘¥Øøñ‘¥Ø±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•µ}}½ÍĞˆøœ­ÁÕQáĞ¬œğ½‘¥Øøœ¬¡±½İI…Ñ¥¹œüœñ‘¥Ø±…ÍÌô‰ÍÕˆµÉ•Ù¥•Üµ¥Ñ•µ}}İ…É¸ˆù1½ÜÕÍ…”ƒŠP½¹Í¥‘•È…¹•±±¥¹œüğ½‘¥Øøœèœœ¤¬œğ½‘¥Øøœì(€ô¤¹©½¥¸ œœ¤ì)ô()™Õ¹Ñ¥½¸…‘‘áÁ•¹Í”¡¥í½¹ÍĞ¥õ•¹% ¤í½¹ÍĞ”õí¥°¸¸¹±ÍÑ…ÑÕÌè…Ñ¥Ù”œ±É•…Ñ•‘Ğé¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¥ôí•áÁ•¹Í•Ì¹ÁÕÍ ¡”¤íÍ…Ù” •áÁ•¹Í•Ìœ±•áÁ•¹Í•Ì¤íÉ•ÑÕÉ¸”íô)™Õ¹Ñ¥½¸ÕÁ‘…Ñ•áÁ•¹Í”¡¥±ÕÁ‘…Ñ•Ì¥í½¹ÍĞ”õ•áÁ•¹Í•Ì¹™¥¹¡àôùà¹¥ôôõ¥¤í¥˜ …”¥É•ÑÕÉ¸¹Õ±°í¥˜¡ÕÁ‘…Ñ•Ì¹ÍÑ…ÑÕÌ„ôõÕ¹‘•™¥¹•¥”¹ÍÑ…ÑÕÌõÕÁ‘…Ñ•Ì¹ÍÑ…ÑÕÌí¥˜¡ÕÁ‘…Ñ•Ì¹¹•áÑÕ”„ôõÕ¹‘•™¥¹•¥”¹¹•áÑÕ”õÕÁ‘…Ñ•Ì¹¹•áÑÕ”íÍ…Ù” •áÁ•¹Í•Ìœ±•áÁ•¹Í•Ì¤íÉ•ÑÕÉ¸”íô)™Õ¹Ñ¥½¸‘•±•Ñ•áÁ•¹Í•…Ñ„¡¥¥í•áÁ•¹Í•Ìõ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹¥„ôõ¥¤íÍ…Ù” •áÁ•¹Í•Ìœ±•áÁ•¹Í•Ì¤íô)™Õ¹Ñ¥½¸…‘‘A…åµ•¹Ğ¡À¤­½¹ÍĞÁ…äõí¥é•¹% ¤°¸¸¹À±‘…Ñ”é¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¥ôíÁ…åµ•¹ÑÌ¹Õ¹Í¡¥™Ğ¡Á…ä¤íÍ…Ù” Á…åµ•¹ÑÌœ±Á…åµ•¹ÑÌ¤íÉ•ÑÕÉ¸Á…äíô)™Õ¹Ñ¥½¸Í…Ù•M•ÑÑ¥¹Í…Ñ„¡¥íÍ•ÑÑ¥¹Ìõì¸¸¹Í•ÑÑ¥¹Ì°¸¸¹‘ôíÍ…Ù” Í•ÑÑ¥¹Ìœ±Í•ÑÑ¥¹Ì¤íô)™Õ¹Ñ¥½¸±•…É±±…Ñ…1½…° ¥í•áÁ•¹Í•ÌõmtíÁ…åµ•¹ÑÌõmtíÍ•ÑÑ¥¹Ìõíôí‘…¥±å1½ÌõmtíÉ…Ñ¥¹ÌõíôíÍÑÉ•…­½Õ¹ĞôÀíÍÑÉ•…­É••é”ôÀíÍÑÉ•…­1…ÍÑ…Ñ”ôœœí±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}•áÁ•¹Í•Ìœ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}Á…åµ•¹ÑÌœ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}Í•ÑÑ¥¹Ìœ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}‘…¥±å1½Ìœ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}É…Ñ¥¹Ìœ¤í±½…±MÑ½É…”¹É•µ½Ù•%Ñ•´ Ñ½­…}ÍÑÉ•…¬œ¤íô)™Õ¹Ñ¥½¸É•¹‘•É…Í¡‰½…É ¥í½¹ÍĞ„õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤í±•ĞÑ´ôÀ±Í´ôÀ±‰´ôÀ±Á´ôÀí„¹™½É… ¡”ôùí±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¥´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀíÑ´¬õ´í¥˜¡”¹ÑåÁ”ôôôÍÕˆœ¥Í´¬õ´í•±Í”¥˜¡”¹ÑåÁ”ôôô‰¥±°œ¥‰´¬õ´í•±Í”Á´¬õ´íô¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Ñ½Ñ…±5½¹Ñ¡±äœ¤¹Ñ•áÑ½¹Ñ•¹Ğõ™µÑH¡Ñ´¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ‰ÕÉ¹MÕˆœ¤¹¥¹¹•É!Q50ôœñÍÁ…¸øñÍÁ…¸±…ÍÌô‰‘½Ğ‘½Ğ´µÍÕˆˆøğ½ÍÁ…¸ùMÕ‰Ì€ñÍÑÉ½¹œûŠ
+äœ­™µÑH¡Í´¤¬œğ½ÍÑÉ½¹œøğ½ÍÁ…¸øñÍÁ…¸øñÍÁ…¸±…ÍÌô‰‘½Ğ‘½Ğ´µ‰¥±°ˆøğ½ÍÁ…¸ù	¥±±Ì€ñÍÑÉ½¹œûŠ
+äœ­™µÑH¡‰´¤¬œğ½ÍÑÉ½¹œøğ½ÍÁ…¸øñÍÁ…¸øñÍÁ…¸±…ÍÌô‰‘½Ğ‘½Ğ´µÁ•ÉÌˆøğ½ÍÁ…¸ùA•ÉÌ€ñÍÑÉ½¹œûŠ
+äœ­™µÑH¡Á´¤¬œğ½ÍÑÉ½¹œøğ½ÍÁ…¸øœí½¹ÍĞÕŒõ„¹™¥±Ñ•È¡”ôùí½¹ÍĞõ‘…åÍU¹Ñ¥°¡”¹¹•áÑÕ”¤íÉ•ÑÕÉ¸øôÀ˜™ğôíô¤¹±•¹Ñ í½¹ÍĞÍŒõ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌôôôÍ¹½½é•œ¤¹±•¹Ñ í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ­Á¥I½Üœ¤¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰­Á¤µ…ÉˆÍÑå±”ôˆ´µ¤èÀˆøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}Ù…±Õ”ˆûŠ
+äœ­™µÑH¡Ñ´¨ÄÈ¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}±…‰•°ˆùe•…É±äğ½‘¥Øøğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…ÉˆÍÑå±”ôˆ´µ¤èÄˆøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}Ù…±Õ”ˆøœ­ÕŒ¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}±…‰•°ˆùQ¡¥Ì]••¬ğ½‘¥Øøğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…ÉˆÍÑå±”ôˆ´µ¤èÈˆøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}Ù…±Õ”ˆÍÑå±”ô‰½±½ÈéÙ…È ´µ…µ‰•È¤ˆøœ­ÍŒ¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}±…‰•°ˆùM¹½½é•ğ½‘¥Øøğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…ÉˆÍÑå±”ôˆ´µ¤èÌˆøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}Ù…±Õ”ˆøœ­•áÁ•¹Í•Ì¹±•¹Ñ ¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰­Á¤µ…É‘}}±…‰•°ˆùQ½Ñ…°ğ½‘¥Øøğ½‘¥ØøœíÉ•¹‘•ÉI•¹•İ…±Ì ¤íÉ•¹‘•ÉQ…‰±” ¤íÉ•¹‘•É…Ñ•½É¥•Ì ¤íô)™Õ¹Ñ¥½¸É•¹‘•ÉI•¹•İ…±Ì ¥í½¹ÍĞ°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% É•¹•İ…±1¥ÍĞœ¤í½¹ÍĞÔõ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤¹Í½ÉĞ ¡„±ˆ¤ôù‘…åÍU¹Ñ¥°¡„¹¹•áÑÕ”¤µ‘…åÍU¹Ñ¥°¡ˆ¹¹•áÑÕ”¤¤¹Í±¥” À°Ô¤í¥˜¡Ô¹±•¹Ñ ôôôÀ¥í°¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼É•¹•İ…±Ìå•Ğğ½‘¥Øøğ½‘¥ØøœíÉ•ÑÕÉ¸íõ°¹¥¹¹•É!Q50õÔ¹µ…À ¡”±¤¤ôùí½¹ÍĞõ‘…åÍU¹Ñ¥°¡”¹¹•áÑÕ”¤í±•Ğ±Ìôœœí¥˜¡ğôÄ¥±ÌôÕÉ•¹Ğœí•±Í”¥˜¡ğôÌ¥±ÌôÍ½½¸œí½¹ÍĞØõ…Ñ½±½È¡”¹…Ñ•½Éä¤í½¹ÍĞ¥Í5…¹Õ…°õ”¹Á…åQåÁ”ôôôµ…¹Õ…°œí½¹ÍĞÁ…å1…‰•°õ¥Í5…¹Õ…°üA…äœè5…É¬A…¥œíÉ•ÑÕÉ¸œñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•´ˆÍÑå±”ôˆ´µ¤èœ­¤¬œˆøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}¥½¸ˆÍÑå±”ô‰‰…­É½Õ¹éÙ…È ´´œ­Ø¬œµ‘¥´¤í½±½ÈéÙ…È ´´œ­Ø¬œ¤ˆøœ­…Ñ%½¸¡”¹…Ñ•½Éä¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}¥¹™¼ˆøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}¹…µ”ˆøœ¬¡”¹±¥¹¬üœñ„¡É•˜ôˆœ­”¹±¥¹¬¬œˆÑ…É•Ğô‰}‰±…¹¬ˆøœ­”¹¹…µ”¬œğ½„øœé”¹¹…µ”¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}‘Õ”€œ­±Ì¬œˆøô­™µÑÕ”¡”¹¹•áÑÕ”¤¬œ€´€œ­”¹…Ñ•½Éä¬¡¥Í5…¹Õ…°üœœèœƒ
+ÜÕÑ¼œ¤¬œğ½‘¥Øøğ½‘¥Øøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}…µ½Õ¹ĞˆûŠ
+äœ­™µÑH¡”¹…µ½Õ¹Ğ¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰É•¹•İ…°µ¥Ñ•µ}}…Ñ¥½¹Ìøœ¬¡”¹±¥¹¬üœñ„±…ÍÌô‰‰Ñ¸µµ¥¹¤‰Ñ¸µµ¥¹¤´µµ…¹…”ˆ¡É•˜ôˆœ­”¹±¥¹¬¬œˆÑ…É•Ğô‰}‰±…¹¬ˆù5…¹…”ğ½„øœèœœ¤¬œñ‰ÕÑÑ½¸±…ÍÌô‰‰Ñ¸µµ¥¹¤‰Ñ¸µµ¥¹¤´µÁ…äˆ½¹±¥¬ô‰½Á•¹A…å5½‘…°¡pœœ­”¹¥¬pœ¤ˆøœ­Á…å1…‰•°¬œğ½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸±…ÍÌô‰‰Ñ¸µµ¥¹¤‰Ñ¸µµ¥¹¤´µÍ¹½½é”ˆ½¹±¥¬ô‰Í¹½½é•áÁ•¹Í”¡pœœ­”¹¥¬pœ¤ˆùM¹½½é”ğ½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸±…ÍÌô‰‰Ñ¸µµ¥¹¤‰Ñ¸µµ¥¹¤´µ…¹•°ˆ½¹±¥¬ô‰…¹•±áÁ•¹Í”¡pœœ­”¹¥¬pœ¤ˆù…¹•°ğ½‰ÕÑÑ½¸øğ½‘¥Øøğ½‘¥Øøœíô¤¹©½¥¸ œœ¤íô)™Õ¹Ñ¥½¸µ½¹Ñ¡±åµ½Õ¹Ğ¡”¥í±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¥´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀíÉ•ÑÕÉ¸´íô)™Õ¹Ñ¥½¸É•¹‘•ÉQ…‰±” ¥í½¹ÍĞĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% •áÁ•¹Í•Q…‰±•	½‘äœ¤í½¹ÍĞÄô¡‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•…É¡%¹ÁÕĞœ¤ü¹Ù…±Õ•ñğœœ¤¹Ñ½1½İ•É…Í” ¤¹ÑÉ¥´ ¤í½¹ÍĞ˜õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™¥±Ñ•ÉMÑ…ÑÕÌœ¤ü¹Ù…±Õ•ñğœœí±•Ğ±¥ÍĞõ•áÁ•¹Í•Ì¹Í±¥” ¤í¥˜¡Ä¥±¥ÍĞõ±¥ÍĞ¹™¥±Ñ•È¡”ôù”¹¹…µ”¹Ñ½1½İ•É…Í” ¤¹¥¹±Õ‘•Ì¡Ä¥ññ”¹…Ñ•½Éä¹Ñ½1½İ•É…Í” ¤¹¥¹±Õ‘•Ì¡Ä¤¤í¥˜¡˜¥±¥ÍĞõ±¥ÍĞ¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌôôõ˜¤í¥˜¡±¥ÍĞ¹±•¹Ñ ôôôÀ¥íĞ¹¥¹¹•É!Q50ôœñÑÈøñÑ½±ÍÁ…¸ôˆäˆøñ‘¥Ø±…ÍÌô‰•µÁÑäˆøœ¬ ¡Åññ˜¤ü9¼µ…Ñ¡•Ì™½Õ¹œè9¼•áÁ•¹Í•Ìå•Ğœ¤¬œğ½‘¥Øøğ½Ñøğ½ÑÈøœíÉ•ÑÕÉ¸íõĞ¹¥¹¹•É!Q50õ±¥ÍĞ¹µ…À¡”ôùí½¹ÍĞµ¼õµ½¹Ñ¡±åµ½Õ¹Ğ¡”¤í½¹ÍĞåÈõ”¹å±”ôôô½¹•Ñ¥µ”œı”¹…µ½Õ¹Ğéµ¼¨ÄÈíÉ•ÑÕÉ¸œñÑÈøñÑ±…ÍÌô‰É½Üµ¹…µ”ˆøœ¬¡”¹±¥¹¬üœñ„¡É•˜ôˆœ­”¹±¥¹¬¬œˆÑ…É•Ğô‰}‰±…¹¬ˆøœ­”¹¹…µ”¬œğ½„øœé”¹¹…µ”¤¬œğ½ÑøñÑøœ­ÑåÁ•	…‘”¡”¹ÑåÁ”¤¬œğ½ÑøñÑøñ‘¥Ø±…ÍÌô‰É½Üµ…Ğˆøœ­”¹…Ñ•½Éä¬œğ½‘¥Øøğ½ÑøñÑøœ­”¹å±”¬œğ½ÑøñÑøœ­™µÑÕ”¡”¹¹•áÑÕ”¤¬œğ½ÑøñÑ±…ÍÌô‰¹Õ´ˆûŠ
+äœ­™µÑH¡µ¼¤¬œğ½ÑøñÑ±…ÍÌô‰¹Õ´ˆûŠ
+äœ­™µÑH¡åÈ¤¬œğ½ÑøñÑøœ­ÍÑ…ÑÕÍ	…‘”¡”¹ÍÑ…ÑÕÌ¤¬œğ½ÑøñÑøñ‰ÕÑÑ½¸±…ÍÌô‰‘•°µ‰Ñ¸ˆ½¹±¥¬ô‰‘•±•Ñ•áÁ•¹Í”¡pœœ­”¹¥¬pœ¤ˆùàğ½‰ÕÑÑ½¸øğ½Ñøğ½ÑÈøœíô¤¹©½¥¸ œœ¤íô)™Õ¹Ñ¥½¸É•¹‘•É…Ñ•½É¥•Ì ¥í½¹ÍĞœõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% …ÑÉ¥œ¤í½¹ÍĞ„õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤í½¹ÍĞŒõíôí„¹™½É… ¡”ôùí±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¤´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀím”¹…Ñ•½Éåtô¡m”¹…Ñ•½ÉåuñğÀ¤­´íô¤í½¹ÍĞÌõ=‰©•Ğ¹•¹ÑÉ¥•Ì¡Œ¤¹Í½ÉĞ ¡„±ˆ¤ôù‰lÅtµ…lÅt¤í¥˜¡Ì¹±•¹Ñ ôôôÀ¥íœ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆù9¼…Ñ•½É¥•Ìğ½‘¥ØøœíÉ•ÑÕÉ¸íõ½¹ÍĞµàõÍlÁulÅtíœ¹¥¹¹•É!Q50õÌ¹µ…À ¡m…Ğ°¡µĞôùìı½¹ÍĞØõ…Ñ½±½È¡…Ğ¤íÉ•ÑÕÉ¸œñ‘¥Ø±…ÍÌô‰…Ğµ…Éˆøñ‘¥Ø±…ÍÌô‰…Ğµ…É‘}}¹…µ”ˆøœ­…Ğ¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰…Ğµ…É‘}}…µ½Õ¹ĞˆûŠ
+äœ­™µÑH¡…µĞ¤¬œñÍÁ…¸±…ÍÌô‰Á•Èˆø½µ¼ğ½ÍÁ…¸øğ½‘¥Øøñ‘¥Ø±…ÍÌô‰…Ğµ…É‘}}‰…Èˆøñ‘¥Ø±…ÍÌô‰…Ğµ…É‘}}‰…Èµ™¥±°ˆÍÑå±”ô‰İ¥‘Ñ èœ­5…Ñ ¹É½Õ¹¡…µĞ½µà¨ÄÀÀ¤¬œ”í‰…­É½Õ¹éÙ…È ´´œ­Ø¬œ¤ˆøğ½‘¥Øøğ½‘¥Øøğ½‘¥Øøœíô¤¹©½¥¸ œœ¤íô)™Õ¹Ñ¥½¸É•¹‘•ÉA…åµ•¹ÑÌ ¥í½¹ÍĞ°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…å!¥ÍÑ½Éå1¥ÍĞœ¤í¥˜ …Á…åµ•¹ÑÌ¹±•¹Ñ ¥í°¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼Á…åµ•¹ÑÌå•Ğğ½‘¥Øøğ½‘¥Øøœíõ•±Í•í°¹¥¹¹•É!Q50õÁ…åµ•¹ÑÌ¹µ…À ¡À±¤¤ôøœñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•´ˆÍÑå±”ôˆ´µ¤èœ­¤¬œˆøñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•µ}}¥½¸ˆÍÑå±”ô‰‰…­É½Õ¹éÙ…È ´´œ­…Ñ½±½È¡À¹…Ñ•½Éä¤¬œµ‘¥´¤í½±½ÈéÙ…È ´´œ­…Ñ½±½È¡À¹…Ñ•½Éä¤¬œ¤ˆøœ­…Ñ%½¸¡À¹…Ñ•½Éä¤¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•µ}}¥¹™¼ˆøñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•µ}}¹…µ”ˆøœ­À¹¹…µ”¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•µ}}µ•Ñ„ˆøœ¬¡À¹…Ñ•½Éåñğœ´œ¤¬œ€´€œ­¹•Ü…Ñ”¡À¹‘…Ñ”¤¹Ñ½1½…±•…Ñ•MÑÉ¥¹œ •¸µ%8œ±í‘…äè¹Õµ•É¥Œœ±µ½¹Ñ èÍ¡½ÉĞœ±å•…Èè¹Õµ•É¥Œô¤¬œğ½‘¥Øøğ½‘¥ØøñÍÁ…¸±…ÍÌô‰Á…äµµ•Ñ¡½Á…äµµ•Ñ¡½´´œ¬¡À¹µ•Ñ¡½ôôôÕÁ¤œüÕÁ¤œèµ…¹Õ…°œ¤¬œˆøœ­À¹µ•Ñ¡½¬œğ½ÍÁ…¸øñ‘¥Ø±…ÍÌô‰Á…äµ¡¥ÍÑ½Éäµ¥Ñ•µ}}…µ½Õ¹ĞˆûŠ
+äœ­™µÑH¡À¹…µ½Õ¹Ğ¤¬œğ½‘¥Øøğ½‘¥Øøœ¤¹©½¥¸ œœ¤íõ½¹ÍĞÑ½Ñ…°õÁ…åµ•¹ÑÌ¹É•‘Õ” ¡Ì±À¤ôùÌ­À¹…µ½Õ¹Ğ°À¤í½¹ÍĞÕÁ¥PõÁ…åµ•¹ÑÌ¹™¥±Ñ•È¡ÀôùÀ¹µ•Ñ¡½ôôôÕÁ¤œ¤¹É•‘Õ” ¡Ì±À¤ôùÌ­À¹…µ½Õ¹Ğ°À¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…åMÕµµ…Éäœ¤¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰ÍÕµµ…ÉäµÉ½ÜˆøñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}±…‰•°ˆùUA$ğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}Ù…±Õ”ˆûŠ
+äœ­™µÑH¡ÕÁ¥P¤¬œğ½ÍÁ…¸øğ½‘¥Øøñ‘¥Ø±…ÍÌô‰ÍÕµµ…ÉäµÉ½ÜˆøñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}±…‰•°ˆù5…¹Õ…°ğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}Ù…±Õ”ˆûŠ
+äœ­™µÑH¡Ñ½Ñ…°µÕÁ¥P¤¬œğ½ÍÁ…¸øğ½‘¥Øøñ‘¥Ø±…ÍÌô‰ÍÕµµ…ÉäµÉ½ÜÍÕµµ…ÉäµÉ½Ü´µÑ½Ñ…°ˆøñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}±…‰•°ˆùQ½Ñ…°A…¥ğ½ÍÁ…¸øñÍÁ…¸±…ÍÌô‰ÍÕµµ…ÉäµÉ½İ}}Ù…±Õ”ˆûŠ
+äœ­™µÑH¡Ñ½Ñ…°¤¬œğ½ÍÁ…¸øğ½‘¥Øøœíô)™Õ¹Ñ¥½¸É•¹‘•ÉM•ÑÑ¥¹Ì ¥í¥˜¡Í•ÑÑ¥¹Ì¹É•¹•İ…°ôôôÑÉÕ”œ¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑI•¹•İ…°œ¤¹¡•­•õÑÉÕ”í¥˜¡Í•ÑÑ¥¹Ì¹‘…åÌ¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•Ñ…åÌœ¤¹Ù…±Õ”õÍ•ÑÑ¥¹Ì¹‘…åÌí¥˜¡Í•ÑÑ¥¹Ì¹ÁÕÍ ôôôÑÉÕ”œ¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑAÕÍ œ¤¹¡•­•õÑÉÕ”íô)™Õ¹Ñ¥½¸Íİ¥Ñ¡Q…ˆ¡Ğ±ˆ¤­‘½Õµ•¹Ğ¹ÅÕ•ÉåM•±•Ñ½É±° œ¹¹…ØµÑ…ˆœ¤¹™½É… ¡àôùà¹±…ÍÍ1¥ÍĞ¹É•µ½Ù” …Ñ¥Ù”œ¤¤íˆ¹±…ÍÍ1¥ÍĞ¹…‘ …Ñ¥Ù”œ¤íl‘…Í¡‰½…Éœ°‘…¥±å±½œœ°Á…åµ•¹ÑÌœ°¥¹Í¥¡ÑÌœ°Í•ÑÑ¥¹Ìt¹™½É… ¡Øôùí½¹ÍĞ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Ù¥•Ü´œ­Ø¤í¥˜¡•°¥•°¹ÍÑå±”¹‘¥ÍÁ±…äõØôôõĞü‰±½¬œè¹½¹”œíô¤í¥˜¡Ğôôô¥¹Í¥¡ÑÌœ¥íÉ•¹‘•É%¹Í¥¡ÑÌ ¤íÉ•¹‘•É%¹Í¥¡ÑÍQ…ˆ ¤íÉ•¹‘•ÉMÕ‰I•Ù¥•Ü ¤íõ¥˜¡Ğôôô‘…¥±å±½œœ¥íÉ•¹‘•É…¥±å1½œ ¤íÉ•¹‘•É…¥±å!¥ÍÑ½Éä ¤íõÑÉ…­Ù•¹Ğ Ñ…‰}Ù¥•Üœ°¹…Ù¥…Ñ¥½¸œ±íÑ…‰}¹…µ”éÑô¤íô)™Õ¹Ñ¥½¸½Á•¹5½‘…° ¥í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% µ½‘…±=Ù•É±…äœ¤¹±…ÍÍ1¥ÍĞ¹…‘ ½Á•¸œ¤í½¹ÍĞõ¹•Ü…Ñ” ¤í¹Í•Ñ…Ñ”¡¹•Ñ…Ñ” ¤¬ÌÀ¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™9•áÑÕ”œ¤¹Ù…±Õ”õ¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ğ Pœ¥lÁtíô)™Õ¹Ñ¥½¸±½Í•5½‘…° ¥í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% µ½‘…±=Ù•É±…äœ¤¹±…ÍÍ1¥ÍĞ¹É•µ½Ù” ½Á•¸œ¤íl™9…µ”œ°™µ½Õ¹Ğœ°™…Ñ•½Éäœ°™1¥¹¬œ°™UÁ¥%t¹™½É… ¡¤ôù‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å%¡¤¤¹Ù…±Õ”ôœœ¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™A…åQåÁ”œ¤¹Ù…±Õ”ô…ÕÑ¼œí‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% µ•É¡…¹Ñ!¥¹Ğœ¤¹ÍÑå±”¹‘¥ÍÁ±…äô¹½¹”œíô)™Õ¹Ñ¥½¸¡•­5•É¡…¹Ğ ¥í½¹ÍĞ¸õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™9…µ”œ¤¹Ù…±Õ”¹Ñ½1½İ•É…Í” ¤¹ÑÉ¥´ ¤í½¹ÍĞ õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% µ•É¡…¹Ñ!¥¹Ğœ¤í½¹ÍĞ˜õ=‰©•Ğ¹­•åÌ¡5I!9QL¤¹™¥¹¡´ôù¸¹¥¹±Õ‘•Ì¡´¤¤í¥˜¡˜˜™¸¹±•¹Ñ øÈ¥í½¹ÍĞ´õ5I!9QMm™tí¥˜ …‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™…Ñ•½Éäœ¤¹Ù…±Õ”¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™…Ñ•½Éäœ¤¹Ù…±Õ”õ´¹…Ğí¥˜ …‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™1¥¹¬œ¤¹Ù…±Õ”˜™´¹±¥¹¬¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™1¥¹¬œ¤¹Ù…±Õ”õ´¹±¥¹¬í¥˜ …‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™µ½Õ¹Ğœ¤¹Ù…±Õ”˜™´¹…µĞ¥‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™µ½Õ¹Ğœ¤¹Ù…±Õ”õ´¹…µĞí¥˜¡´¹å‘±ä¥í½¹ÍĞŒõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™å±”œ¤í¥˜¡Œ¹Ù…±Õ”ôôôµ½¹Ñ¡±äœ¥Œ¹Ù…±Õ”ôå•…É±äœíõ ¹¥¹¹•É!Q50ô•Ñ•Ñ•è€ñÍÑÉ½¹œøœ­˜¬œğ½ÍÑÉ½¹œø€´…ÕÑ¼µ™¥±±•œí ¹ÍÑå±”¹‘¥ÍÁ±…äô‰±½¬œíõ•±Í” ¹ÍÑå±”¹‘¥ÍÁ±…äô¹½¹”œíô)™Õ¹Ñ¥½¸ÍÕ‰µ¥ÑáÁ•¹Í” ¥í½¹ÍĞõí¹…µ”é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™9…µ”œ¤¹Ù…±Õ”¹ÑÉ¥´ ¤±…µ½Õ¹ĞéÁ…ÉÍ•%¹Ğ¡‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™µ½Õ¹Ğœ¤¹Ù…±Õ”¤±…Ñ•½Éäé‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™…Ñ•½Éäœ¤¹Ù…±Õ”¹ÑÉ¥´ ¥ñğ=Ñ¡•Èœ±ÑåÁ”é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™QåÁ”œ¤¹Ù…±Õ”±å±”é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™å±”œ¤¹Ù…±Õ”±¹•áÑÕ”é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™9•áÑÕ”œ¤¹Ù…±Õ”±±¥¹¬é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™1¥¹¬œ¤¹Ù…±Õ”¹ÑÉ¥´ ¤±ÕÁ¥%é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™UÁ¥%œ¤¹Ù…±Õ”¹ÑÉ¥´ ¤±Á…åQåÁ”é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ™A…åQåÁ”œ¤¹Ù…±Õ•ñğ…ÕÑ¼ôí¥˜ …¹¹…µ•ñğ…¹…µ½Õ¹Ññğ…¹¹•áÑÕ”¥íÍ¡½İQ½…ÍĞ ¥±°¹…µ”°…µ½Õ¹Ğ°‘Õ”‘…Ñ”œ¤íÉ•ÑÕÉ¸íõ…‘‘áÁ•¹Í”¡¤í±½Í•5½‘…° ¤í±½…‘…Ñ„ ¤ì(€ÑÉ…­Ù•¹Ğ …‘‘}•áÁ•¹Í”œ°•¹…•µ•¹Ğœ±í•áÁ•¹Í•}ÑåÁ”é¹ÑåÁ”±‰¥±±¥¹}å±”é¹å±”±Á…å}ÑåÁ”é¹Á…åQåÁ•ô¤ì(€Í¡½İQ½…ÍĞ ‘‘•œ¤íô)™Õ¹Ñ¥½¸½Á•¹A…å5½‘…°¡¥¥í½¹ÍĞ”õ•áÁ•¹Í•Ì¹™¥¹¡àôùà¹¥ôôõ¥¤í¥˜ …”¥É•ÑÕÉ¸íÕÉÉ•¹ÑA…åáÁ•¹Í”õ”í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…å9…µ”œ¤¹Ñ•áÑ½¹Ñ•¹Ğõ”¹¹…µ”í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…åµ½Õ¹Ğœ¤¹Ñ•áÑ½¹Ñ•¹Ğõ™µÑH¡”¹…µ½Õ¹Ğ¤í½¹ÍĞÕ¥õ”¹ÕÁ¥%‘ñğœœí½¹ÍĞÕ°õÕ¥üÕÁ¤è¼½Á…äıÁ„ôœ­Õ¥¬œ™Á¸ôœ­•¹½‘•UI%½µÁ½¹•¹Ğ¡”¹¹…µ”¤¬œ™…´ôœ­”¹…µ½Õ¹Ğ¬œ™Ôõ%9Hœèœœí‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÕÁ¥1¥¹¬œ¤¹Ù…±Õ”õÕ°í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…åÁÁÌœ¤¹¥¹¹•É!Q50õAe}AAL¹µ…À¡„ôøœñ„±…ÍÌô‰Á…äµ…ÁÀˆ¡É•˜ôˆœ¬¡Õ¥ı„¹Í¡•µ”¬œè¼½Á…äıÁ„ôœ­Õ¥¬œ™Á¸ôœ­•¹½‘•UI%½µÁ½¹•¹Ğ¡”¹¹…µ”¤¬œ™…´ôœ­”¹…µ½Õ¹Ğ¬œ™Ôõ%9Hœé„¹Í¡•µ”¬œè¼¼œ¤¬œˆøñ‘¥Ø±…ÍÌô‰Á…äµ…ÁÁ}}¥½¸ˆÍÑå±”ô‰‰…­É½Õ¹èœ­„¹½±½È¬œˆøœ­„¹¥½¸¬œğ½‘¥Øøñ‘¥Ø±…ÍÌô‰Á…äµ…ÁÁ}}¹…µ”ˆøœ­„¹¹…µ”¬œğ½‘¥Øøğ½„øœ¤¹©½¥¸ œœ¤í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…å=Ù•É±…äœ¤¹±…ÍÍ1¥ÍĞ¹…‘ ½Á•¸œ¤íô)™Õ¹Ñ¥½¸±½Í•A…å5½‘…° ¥í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Á…å=Ù•É±…äœ¤¹±…ÍÍ1¥ÍĞ¹É•µ½Ù” ½Á•¸œ¤íÕÉÉ•¹ÑA…åáÁ•¹Í”õ¹Õ±°íô)™Õ¹Ñ¥½¸½ÁåUÁ¥1¥¹¬ ¥í½¹ÍĞ¤õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% ÕÁ¥1¥¹¬œ¤í¤¹Í•±•Ğ ¤í‘½Õµ•¹Ğ¹•á•½µµ…¹ ½Áäœ¤íÍ¡½İQ½…ÍĞ ½Á¥•œ¤íô)™Õ¹Ñ¥½¸µ…É­A…¥ ¥í¥˜ …ÕÉÉ•¹ÑA…åáÁ•¹Í”¥É•ÑÕÉ¸í½¹ÍĞ”õÕÉÉ•¹ÑA…åáÁ•¹Í”í…‘‘A…åµ•¹Ğ¡í•áÁ•¹Í•%é”¹¥±¹…µ”é”¹¹…µ”±…µ½Õ¹Ğé”¹…µ½Õ¹Ğ±…Ñ•½Éäé”¹…Ñ•½Éä±µ•Ñ¡½èÕÁ¤ô¤í½¹ÍĞ¸õ¹•Ü…Ñ”¡”¹¹•áÑÕ”¤í¥˜¡”¹å±”ôôôå•…É±äœ¥í¸¹Í•ÑÕ±±e•…È¡¸¹•ÑÕ±±e•…È ¤¬Ä¤íõ•±Í”¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ì¤íõ•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥íÕÁ‘…Ñ•áÁ•¹Í”¡”¹¥±íÍÑ…ÑÕÌè…¹•±±•ô¤í±½Í•A…å5½‘…° ¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ A…¥œ¤íÉ•ÑÕÉ¸íõ•±Í•í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ä¤íõÕÁ‘…Ñ•áÁ•¹Í”¡”¹¥±í¹•áÑÕ”é¸¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ğ Pœ¥lÁuô¤í±½Í•A…å5½‘…° ¤í±½…‘…Ñ„ ¤íÑÉ…­Ù•¹Ğ µ…É­}Á…¥œ°•¹…•µ•¹Ğœ±í•áÁ•¹Í•}…Ñ•½Éäé”¹…Ñ•½Éä±‰¥±±¥¹}å±”é”¹å±•ô¤íÍ¡½İQ½…ÍĞ A…¥œ¤íô)™Õ¹Ñ¥½¸Í¹½½é•áÁ•¹Í”¡¥¥í½¹ÍĞ”õ•áÁ•¹Í•Ì¹™¥¹¡àôùà¹¥ôôõ¥¤í¥˜ …”¥É•ÑÕÉ¸í½¹ÍĞ¸õ¹•Ü…Ñ”¡”¹¹•áÑÕ”¤í¥˜¡”¹å±”ôôôå•…É±äœ¥í¸¹Í•ÑÕ±±e•…È¡¸¹•ÑÕ±±e•…È ¤¬Ä¤íõ•±Í”¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ì¤íõ•±Í•í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ä¤íõÕÁ‘…Ñ•áÁ•¹Í”¡¥±íÍÑ…ÑÕÌèÍ¹½½é•œ±¹•áÑÕ”é¸¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ğ Pœ¥lÁuô¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ M¹½½é•œ¤íô)™Õ¹Ñ¥½¸…¹•±áÁ•¹Í”¡¥¥íÕÁ‘…Ñ•áÁ•¹Í”¡¥±íÍÑ…ÑÕÌè…¹•±±•ô¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ …¹•±±•œ¤íô)™Õ¹Ñ¥½¸É•¹•İáÁ•¹Í”¡¥¥í½¹ÍĞ”õ•áÁ•¹Í•Ì¹™¥¹¡àôùà¹¥ôôõ¥¤í¥˜ …”¥É•ÑÕÉ¸í½¹ÍĞ¸õ¹•Ü…Ñ”¡”¹¹•áÑÕ”¤í¥˜¡”¹å±”ôôôå•…É±äœ¥í¸¹Í•ÑÕ±±e•…È¡¸¹•ÑÕ±±e•…È ¤¬Ä¤íõ•±Í”¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ì¤íõ•±Í•í¸¹Í•Ñ5½¹Ñ ¡¸¹•Ñ5½¹Ñ  ¤¬Ä¤íõÕÁ‘…Ñ•áÁ•¹Í”¡¥±íÍÑ…ÑÕÌè…Ñ¥Ù”œ±¹•áÑÕ”é¸¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ğ Pœ¥lÁuô¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ I•¹•İ•œ¤íô)™Õ¹Ñ¥½¸‘•±•Ñ•áÁ•¹Í”¡¥¥í‘•±•Ñ•áÁ•¹Í•…Ñ„¡¥¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ •±•Ñ•œ¤íô)™Õ¹Ñ¥½¸Í…Ù•M•ÑÑ¥¹Ì ¥í½¹ÍĞõíÉ•¹•İ…°é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑI•¹•İ…°œ¤¹¡•­•üÑÉÕ”œè™…±Í”œ±‘…åÌé‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•Ñ…åÌœ¤¹Ù…±Õ”±ÁÕÍ é‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑAÕÍ œ¤¹¡•­•üÑÉÕ”œè™…±Í”ôíÍ…Ù•M•ÑÑ¥¹Í…Ñ„¡¤íÍ¡½İQ½…ÍĞ M…Ù•œ¤íô)™Õ¹Ñ¥½¸Ñ½±•AÕÍ  ¥í¥˜¡‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑAÕÍ œ¤¹¡•­•¥í¥˜ 9½Ñ¥™¥…Ñ¥½¸¥¸İ¥¹‘½Ü¥í9½Ñ¥™¥…Ñ¥½¸¹É•ÅÕ•ÍÑA•Éµ¥ÍÍ¥½¸ ¤¹Ñ¡•¸¡Àôùí¥˜¡À„ôôÉ…¹Ñ•œ¥í‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Í•ÑAÕÍ œ¤¹¡•­•õ™…±Í”íÍ¡½İQ½…ÍĞ •¹¥•œ¤íÉ•ÑÕÉ¸íõÍ…Ù•M•ÑÑ¥¹Ì ¤íô¤íõ•±Í•íÍ…Ù•M•ÑÑ¥¹Ì ¤íõõ•±Í•íÍ…Ù•M•ÑÑ¥¹Ì ¤íõô)™Õ¹Ñ¥½¸±•…É±±…Ñ„ ¥í¥˜ …½¹™¥É´ •±•Ñ”10‘…Ñ„üœ¤¥É•ÑÕÉ¸í±•…É±±…Ñ…1½…° ¤í±½…‘…Ñ„ ¤íÍ¡½İQ½…ÍĞ ±•…É•œ¤íô)™Õ¹Ñ¥½¸Í¡½İQ½…ÍĞ¡´¥í½¹ÍĞĞõ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å% Ñ½…ÍĞœ¤íĞ¹Ñ•áÑ½¹Ñ•¹Ğõ´íĞ¹±…ÍÍ1¥ÍĞ¹…‘ Í¡½Üœ¤íÍ•ÑQ¥µ•½ÕĞ  ¤ôùĞ¹±…ÍÍ1¥ÍĞ¹É•µ½Ù” Í¡½Üœ¤°ÌÀÀÀ¤íô)™Õ¹Ñ¥½¸ÑÉ…­Ù•¹Ğ¡…Ñ¥½¸±…Ñ•½Éä±Á…É…µÌ¥í¥˜¡ÑåÁ•½˜Ñ…œôôô™Õ¹Ñ¥½¸œ¥íÑ…œ •Ù•¹Ğœ±…Ñ¥½¸±í•Ù•¹Ñ}…Ñ•½Éäé…Ñ•½Éä°¸¸¸¡Á…É…µÍññíô¥ô¤íõô)™Õ¹Ñ¥½¸ÑÉ…­A…”¡Ù¥•Ü¥í¥˜¡ÑåÁ•½˜Ñ…œôôô™Õ¹Ñ¥½¸œ¥íÑ…œ •Ù•¹Ğœ°Á…•}Ù¥•Üœ±íÁ…•}Ñ¥Ñ±”éÙ¥•Ü±Á…•}±½…Ñ¥½¸é±½…Ñ¥½¸¹¡É•˜¬œŒœ­Ù¥•İô¤íõô((¼¼€ôôôôô!IQL€¼%9M%!QL€ôôôôô)™Õ¹Ñ¥½¸•¹ÍÕÉ•…¹Ù…Ì¡¥¥í±•Ğ•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å%¡¥¤í¥˜ …•±ññ•°¹Ñ…9…µ”„ôô9YLœ¥í½¹ÍĞÁ…É•¹Ğõ•°ı•°¹Á…É•¹Ñ±•µ•¹Ğé‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å%¡¥¤ü¹Á…É•¹Ñ±•µ•¹Ğí¥˜¡Á…É•¹Ğ¥íÁ…É•¹Ğ¹¥¹¹•É!Q50ôœñ…¹Ù…Ì¥ôˆœ­¥¬œˆøğ½…¹Ù…Ìøœí•°õ‘½Õµ•¹Ğ¹•Ñ±•µ•¹Ñ	å%¡¥¤íõõÉ•ÑÕÉ¸•°íô)™Õ¹Ñ¥½¸É•¹‘•É%¹Í¥¡ÑÌ ¥ì(€¥˜¡ÑåÁ•½˜¡…ÉĞôôôÕ¹‘•™¥¹•œ¥É•ÑÕÉ¸ì(€½¹ÍĞ¥Í…É¬õİ¥¹‘½Ü¹µ…Ñ¡5•‘¥„ œ¡ÁÉ•™•ÉÌµ½±½ÈµÍ¡•µ”é‘…É¬¤œ¤¹µ…Ñ¡•Ìì(€½¹ÍĞÑ•áÑ½±½Èõ¥Í…É¬üœŒåŒäÌáˆœèœŒÜàÜÀÙŒœì(€½¹ÍĞÉ¥‘½±½Èõ¥Í…É¬üÉ‰„ ÈÔÔ°ÈÔÔ°ÈÔÔ°¸ÀØ¤œèÉ‰„ À°À°À°¸ÀÜ¤œì(€½¹ÍĞ…•¹Ğõ•ÑMMY…È œ´µ…•¹Ğœ¥ñğœŒÈĞÄÁŒœì(€½¹ÍĞ‰±Õ”õ•ÑMMY…È œ´µ‰±Õ”œ¥ñğœŒÀÌØå„Äœì(€½¹ÍĞÉ••¸õ•ÑMMY…È œ´µÉ••¸œ¥ñğœŒÀÔäØØäœì(€½¹ÍĞ…µ‰•Èõ•ÑMMY…È œ´µ…µ‰•Èœ¥ñğœäÜÜÀØœì(€½¹ÍĞÁÕÉÁ±”õ•ÑMMY…È œ´µÁÕÉÁ±”œ¥ñğœŒİŒÍ…•œì(€½¹ÍĞÉ•õ•ÑMMY…È œ´µÉ•œ¥ñğœ‘ŒÈØÈØœì(€¡…ÉĞ¹‘•™…Õ±ÑÌ¹™½¹Ğ¹™…µ¥±äôˆA±ÕÌ)…­…ÉÑ„M…¹Ìœ±ÍåÍÑ•´µÕ¤±Í…¹ÌµÍ•É¥˜ˆì(€¡…ÉĞ¹‘•™…Õ±ÑÌ¹½±½ÈõÑ•áÑ½±½Èì(€½¹ÍĞ…Ñ¥Ù”õ•áÁ•¹Í•Ì¹™¥±Ñ•È¡”ôù”¹ÍÑ…ÑÕÌ„ôô…¹•±±•œ¤ì(€½¹ÍĞ…Ñ5…Àõíôì(€…Ñ¥Ù”¹™½É… ¡”ôùí±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¤´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀí…Ñ5…Ám”¹…Ñ•½Éåtô¡…Ñ5…Ám”¹…Ñ•½ÉåuñğÀ¤­´íô¤ì(€½¹ÍĞ…Ñ1…‰•±Ìõ=‰©•Ğ¹­•åÌ¡…Ñ5…À¤ì(€½¹ÍĞ…ÑY…±Õ•Ìõ=‰©•Ğ¹Ù…±Õ•Ì¡…Ñ5…À¤ì(€½¹ÍĞ…Ñ½±½ÉÌõm…•¹Ğ±‰±Õ”±É••¸±…µ‰•È±ÁÕÉÁ±”±É•°œŒÀàäÅˆÈœ°œ‘ˆÈÜÜÜœ°œŒØÕ„ÌÁœ°œŒİŒÉÄÈtì(€‘•ÍÑÉ½å¡…ÉĞ …Ñ¡…ÉÑ%¹ÍĞœ¤ì(€½¹ÍĞ…Ñ…¹Ù…Ìõ•¹ÍÕÉ•…¹Ù…Ì …Ñ¡…ÉĞœ¤ì(€¥˜¡…Ñ1…‰•±Ì¹±•¹Ñ øÀ˜™…Ñ…¹Ù…Ì¥ì(€€€…Ñ¡…ÉÑ%¹ÍĞõ¹•Ü¡…ÉĞ¡…Ñ…¹Ù…Ì±íÑåÁ”è‘½Õ¡¹ÕĞœ±‘…Ñ„éí±…‰•±Ìé…Ñ1…‰•±Ì¹µ…À¡ŒôùŒ¬œ€£Š
+äœ­™µÑH¡…Ñ5…Ámt¤¬œ¤œ¤±‘…Ñ…Í•ÑÌémí‘…Ñ„é…ÑY…±Õ•Ì±‰…­É½Õ¹‘½±½Èé…Ñ½±½ÉÌ¹Í±¥” À±…Ñ1…‰•±Ì¹±•¹Ñ ¤±‰½É‘•É]¥‘Ñ èÈ±‰½É‘•É½±½Èé•ÑMMY…È œ´µÍÕÉ™…”œ¥ñğœ™™˜õuô±½ÁÑ¥½¹ÌéíÉ•ÍÁ½¹Í¥Ù”éÑÉÕ”±µ…¥¹Ñ…¥¹ÍÁ•ÑI…Ñ¥¼é™…±Í”±Á±Õ¥¹Ìéí±••¹éíÁ½Í¥Ñ¥½¸è‰½ÑÑ½´œ±Á…‘‘¥¹œèÄÈ±ÕÍ•A½¥¹ÑMÑå±”éÑÉÕ”±Á½¥¹ÑMÑå±”è¥É±”œ±™½¹ĞéíÍ¥é”èÄÉõõô±ÕÑ½ÕĞèœÔÔ”õô¤ì(€õ•±Í”¥˜¡…Ñ…¹Ù…Ì¥í…Ñ…¹Ù…Ì¹Á…É•¹Ñ±•µ•¹Ğ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼‘…Ñ„Ñ¼¡…ÉĞå•Ğğ½‘¥Øøğ½‘¥Øøœíô(€½¹ÍĞµ½¹Ñ¡Ìõmtí½¹ÍĞ¹½Üõ¹•Ü…Ñ” ¤ì(€™½È¡±•Ğ¤ôÔí¤øôÀí¤´´¥í½¹ÍĞõ¹•Ü…Ñ”¡¹½Ü¹•ÑÕ±±e•…È ¤±¹½Ü¹•Ñ5½¹Ñ  ¤µ¤°Ä¤íµ½¹Ñ¡Ì¹ÁÕÍ ¡í­•äé¹•ÑÕ±±e•…È ¤¬œ´œ­¹•Ñ5½¹Ñ  ¤±±…‰•°é¹Ñ½1½…±•…Ñ•MÑÉ¥¹œ •¸µ%8œ±íµ½¹Ñ èÍ¡½ÉĞô¥ô¤íô(€€¼¼	Õ¥±ÑÉ•¹™É½´	=Q •áÁ•¹Í•Ì€¡µ½¹Ñ¡±äµ¹½Éµ…±¥é•°™É½´É•…Ñ•‘Ğ¤…¹Á…åµ•¹ÑÌ€¡™É½´‘…Ñ”¤(€½¹ÍĞµ½¹Ñ¡…Ñ„õµ½¹Ñ¡Ì¹µ…À¡´ôùì(€€€±•ĞÑ½Ñ…°ôÀì(€€€€¼¼‘µ½¹Ñ¡±äµ¹½Éµ…±¥é••áÁ•¹Í”…µ½Õ¹ÑÌ™½È•áÁ•¹Í•ÌÉ•…Ñ•¥¸½È‰•™½É”Ñ¡¥Ìµ½¹Ñ (€€€…Ñ¥Ù”¹™½É… ¡”ôùì(€€€€€½¹ÍĞÉ•…Ñ•õ¹•Ü…Ñ”¡”¹É•…Ñ•‘Ñññ”¹¹•áÑÕ”¤ì(€€€€€½¹ÍĞ•-•äõÉ•…Ñ•¹•ÑÕ±±e•…È ¤¬œ´œ­É•…Ñ•¹•Ñ5½¹Ñ  ¤ì(€€€€€¥˜¡•-•äğõ´¹­•ä¥ì€¼¼•áÁ•¹Í”•á¥ÍÑ•¥¸Ñ¡¥Ìµ½¹Ñ (€€€€€€€±•Ğµ¼õ”¹…µ½Õ¹Ğì(€€€€€€€¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥µ¼õ”¹…µ½Õ¹Ğ¼Ìì(€€€€€€€•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¥µ¼õ”¹…µ½Õ¹Ğ¼ÄÈì(€€€€€€€•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥µ¼ôÀì(€€€€€€€Ñ½Ñ…°¬õµ¼ì(€€€€€ô(€€€ô¤ì(€€€€¼¼‘…ÑÕ…°Á…åµ•¹Ğ…µ½Õ¹ÑÌ™½ÈÑ¡¥Ìµ½¹Ñ (€€€Ñ½Ñ…°¬õÁ…åµ•¹ÑÌ¹™¥±Ñ•È¡Àôùí½¹ÍĞõ¹•Ü…Ñ”¡À¹‘…Ñ”¤íÉ•ÑÕÉ¸¹•ÑÕ±±e•…È ¤¬œ´œ­¹•Ñ5½¹Ñ  ¤ôôõ´¹­•äíô¤¹É•‘Õ” ¡Ì±À¤ôùÌ­À¹…µ½Õ¹Ğ°À¤ì(€€€É•ÑÕÉ¸5…Ñ ¹É½Õ¹¡Ñ½Ñ…°¤ì(€ô¤ì(€‘•ÍÑÉ½å¡…ÉĞ ÑÉ•¹‘¡…ÉÑ%¹ÍĞœ¤ì(€½¹ÍĞÑÉ•¹‘…¹Ù…Ìõ•¹ÍÕÉ•…¹Ù…Ì ÑÉ•¹‘¡…ÉĞœ¤ì(€½¹ÍĞ¡…ÍQÉ•¹‘…Ñ„õ…Ñ¥Ù”¹±•¹Ñ øÁññÁ…åµ•¹ÑÌ¹±•¹Ñ øÀì(€¥˜¡¡…ÍQÉ•¹‘…Ñ„˜™ÑÉ•¹‘…¹Ù…Ì¥ì(€€€ÑÉ•¹‘¡…ÉÑ%¹ÍĞõ¹•Ü¡…ÉĞ¡ÑÉ•¹‘…¹Ù…Ì±íÑåÁ”è‰…Èœ±‘…Ñ„éí±…‰•±Ìéµ½¹Ñ¡Ì¹µ…À¡´ôù´¹±…‰•°¤±‘…Ñ…Í•ÑÌémí±…‰•°è5½¹Ñ¡±ä	ÕÉ¸€£Š
+ä¤œ±‘…Ñ„éµ½¹Ñ¡…Ñ„±‰…­É½Õ¹‘½±½Èé…•¹Ğ±‰½É‘•ÉI…‘¥ÕÌèØ±‰…ÉQ¡¥­¹•ÍÌè™±•àœ±µ…á	…ÉQ¡¥­¹•ÍÌèÔÁõuô±½ÁÑ¥½¹ÌéíÉ•ÍÁ½¹Í¥Ù”éÑÉÕ”±µ…¥¹Ñ…¥¹ÍÁ•ÑI…Ñ¥¼é™…±Í”±Á±Õ¥¹Ìéí±••¹éí‘¥ÍÁ±…äé™…±Í•õô±Í…±•Ìéíäéí‰•¥¹Ñi•É¼éÑÉÕ”±É¥éí½±½ÈéÉ¥‘½±½Éô±Ñ¥­Ìéí…±±‰…¬éØôøŸŠ
+äœ­™µÑH¡Ø¥õô±àéíÉ¥éí‘¥ÍÁ±…äé™…±Í•õõõõô¤ì(€õ•±Í”¥˜¡ÑÉ•¹‘…¹Ù…Ì¥íÑÉ•¹‘…¹Ù…Ì¹Á…É•¹Ñ±•µ•¹Ğ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼•áÁ•¹Í•ÌÉ•½É‘•å•Ğğ½‘¥Øøğ½‘¥Øøœíô(€½¹ÍĞÑåÁ•5…ÀõíÍÕˆèÀ±‰¥±°èÀ±Á•ÉÌèÁôì(€…Ñ¥Ù”¹™½É… ¡”ôùí±•Ğ´õ”¹…µ½Õ¹Ğí¥˜¡”¹å±”ôôôÅÕ…ÉÑ•É±äœ¥´õ”¹…µ½Õ¹Ğ¼Ìí•±Í”¥˜¡”¹å±”ôôôå•…É±äœ¤´õ”¹…µ½Õ¹Ğ¼ÄÈí•±Í”¥˜¡”¹å±”ôôô½¹•Ñ¥µ”œ¥´ôÀíÑåÁ•5…Ám”¹ÑåÁ•tô¡ÑåÁ•5…Ám”¹ÑåÁ•uñğÀ¤­´íô¤ì(€‘•ÍÑÉ½å¡…ÉĞ ÑåÁ•¡…ÉÑ%¹ÍĞœ¤ì(€½¹ÍĞÑåÁ•…¹Ù…Ìõ•¹ÍÕÉ•…¹Ù…Ì ÑåÁ•¡…ÉĞœ¤ì(€¥˜¡…Ñ¥Ù”¹±•¹Ñ øÀ˜™ÑåÁ•…¹Ù…Ì¥ì(€€€ÑåÁ•¡…ÉÑ%¹ÍĞõ¹•Ü¡…ÉĞ¡ÑåÁ•…¹Ù…Ì±íÑåÁ”è‰…Èœ±‘…Ñ„éí±…‰•±ÌélMÕ‰ÍÉ¥ÁÑ¥½¹Ìœ°	¥±±Ìœ°A•ÉÍ½¹…°t±‘…Ñ…Í•ÑÌémí‘…Ñ„émÑåÁ•5…À¹ÍÕˆ±ÑåÁ•5…À¹‰¥±°±ÑåÁ•5…À¹Á•ÉÍt±‰…­É½Õ¹‘½±½Èém…•¹Ğ±‰±Õ”±É••¹t±‰½É‘•ÉI…‘¥ÕÌèØ±‰…ÉQ¡¥­¹•ÍÌè™±•àœ±µ…á	…ÉQ¡¥­¹•ÍÌèØÁõuô±½ÁÑ¥½¹ÌéíÉ•ÍÁ½¹Í¥Ù”éÑÉÕ”±µ…¥¹Ñ…¥¹ÍÁ•ÑI…Ñ¥¼é™…±Í”±¥¹‘•áá¥Ìèäœ±Á±Õ¥¹Ìéí±••¹éí‘¥ÍÁ±…äé™…±Í•õô±Í…±•Ìéíàéí‰•¥¹Ñi•É¼éÑÉÕ”±É¥éí½±½ÈéÉ¥‘½±½Éô±Ñ¥­Ìéí…±±‰…¬éØôøŸŠ
+äœ­™µÑH¡Ø¥õô±äéíÉ¥éí‘¥ÍÁ±…äé™…±Í•õõõõô¤ì(€õ•±Í”¥˜¡ÑåÁ•…¹Ù…Ì¥íÑåÁ•…¹Ù…Ì¹Á…É•¹Ñ±•µ•¹Ğ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼•áÁ•¹Í•Ìå•Ğğ½‘¥Øøğ½‘¥Øøœíô(€½¹ÍĞÕÁ¥Q½Ñ…°õÁ…åµ•¹ÑÌ¹™¥±Ñ•È¡ÀôùÀ¹µ•Ñ¡½ôôôÕÁ¤œ¤¹É•‘Õ” ¡Ì±À¤ôùÌ­À¹…µ½Õ¹Ğ°À¤ì(€½¹ÍĞµ…¹Õ…±Q½Ñ…°õÁ…åµ•¹ÑÌ¹™¥±Ñ•È¡ÀôùÀ¹µ•Ñ¡½„ôôÕÁ¤œ¤¹É•‘Õ” ¡Ì±À¤ôùÌ­À¹…µ½Õ¹Ğ°À¤ì(€‘•ÍÑÉ½å¡…ÉĞ µ•Ñ¡½‘¡…ÉÑ%¹ÍĞœ¤ì(€½¹ÍĞµ•Ñ¡½‘…¹Ù…Ìõ•¹ÍÕÉ•…¹Ù…Ì µ•Ñ¡½‘¡…ÉĞœ¤ì(€¥˜¡Á…åµ•¹ÑÌ¹±•¹Ñ øÀ˜™µ•Ñ¡½‘…¹Ù…Ì¥ì(€€€µ•Ñ¡½‘¡…ÉÑ%¹ÍĞõ¹•Ü¡…ÉĞ¡µ•Ñ¡½‘…¹Ù…Ì±íÑåÁ”èÁ¥”œ±‘…Ñ„éí±…‰•±ÌélUA$€£Š
+äœ­™µÑH¡ÕÁ¥Q½Ñ…°¤¬œ¤œ°5…¹Õ…°€£Š
+äœ­™µÑH¡µ…¹Õ…±Q½Ñ…°¤¬œ¤t±‘…Ñ…Í•ÑÌémí‘…Ñ„émÕÁ¥Q½Ñ…°±µ…¹Õ…±Q½Ñ…±t±‰…­É½Õ¹‘½±½ÈémÁÕÉÁ±”°‰±Õ•t±‰½É‘•É]¥‘Ñ èÈ±‰½É‘•É½±½Èé•ÑMMY…È œ´µÍÕÉ™…”œ¥ñğœ™™˜õuô±½ÁÑ¥½¹ÌéíÉ•ÍÁ½¹Í¥Ù”éÑÉÕ”±µ…¥¹Ñ…¥¹ÍÁ•ÑI…Ñ¥¼é™…±Í”±Á±Õ¥¹Ìéí±••¹éíÁ½Í¥Ñ¥½¸è‰½ÑÑ½´œ±Á…‘‘¥¹œèÄÈ±ÕÍ•A½¥¹ÑMÑå±”éÑÉÕ”±Á½¥¹ÑMÑå±”è¥É±”œ±™½¹ĞéíÍ¥é”èÄÉõõõõô¤ì(€õ•±Í”¥˜¡µ•Ñ¡½‘¡…¹Ù…Ì¥íµ•Ñ¡½‘¡…¹Ù…Ì¹Á…É•¹Ñ±•µ•¹Ğ¹¥¹¹•É!Q50ôœñ‘¥Ø±…ÍÌô‰•µÁÑäˆøñ‘¥Ø±…ÍÌô‰•µÁÑå}}Ñ•áĞˆù9¼Á…åµ•¹ÑÌå•ĞƒŠPµ…É¬•áÁ•¹Í•Ì…ÌÁ…¥Ñ¼Í•”‰É•…­‘½İ¸ğ½‘¥Øøğ½‘¥Øøœíô)ô)™Õ¹Ñ¥½¸‘•ÍÑÉ½å¡…ÉĞ¡¹…µ”¥í¥˜¡İ¥¹‘½İm¹…µ•t¥íİ¥¹‘½İm¹…µ•t¹‘•ÍÑÉ½ä ¤íİ¥¹‘½İm¹…µ•tõ¹Õ±°íõô((¼¼€ôôôôôaA=IP€ôôôôô)™Õ¹Ñ¥½¸•áÁ½ÉÑMX ¥ì(€¥˜¡•áÁ•¹Í•Ì¹±•¹Ñ ôôôÀ˜™Á…åµ•¹ÑÌ¹±•¹Ñ ôôôÀ˜™‘…¥±å1½Ì¹±•¹Ñ ôôôÀ¥íÍ¡½İQ½…ÍĞ 9¼‘…Ñ„Ñ¼•áÁ½ÉĞœ¤íÉ•ÑÕÉ¸íô(€±•ĞÍØôœœì(€ÍØ¬ôaA9MMqq¸œì(€ÍØ¬ô9…µ”±QåÁ”±…Ñ•½Éä±å±”±9•áĞÕ”±µ½Õ¹Ğ±MÑ…ÑÕÌ±É•…Ñ•Ñq¸œì(€•áÁ•¹Í•Ì¹™½É… ¡”ôùíÍØ¬õm”¹¹…µ”±”¹ÑåÁ”±”¹…Ñ•½Éä±”¹å±”±”¹¹•áÑÕ”±”¹…µ½Õ¹Ğ±”¹ÍÑ…ÑÕÌ±”¹É•…Ñ•‘Ñt¹µ…À¡Øôøœˆœ­MÑÉ¥¹œ¡Ùñğœœ¤¹É•Á±…” ¼ˆ½œ°œˆˆœ¤¬œˆœ¤¹©½¥¸ œ°œ¤¬œq¸œíô¤ì(€ÍØ¬ôq¹Ae59QMqq¸œì(€ÍØ¬ô9…µ”±µ½Õ¹Ğ±…Ñ•½Éä±5•Ñ¡½±…Ñ•q¸œì(€Á…åµ•¹ÑÌ¹™½É… ¡ÀôùíÍØ¬õmÀ¹¹…µ”±À¹…µ½Õ¹Ğ±À¹…Ñ•½Éåñğœœ±À¹µ•Ñ¡½±À¹‘…Ñ•t¹µ…À¡Øôøœˆœ­MÑÉ¥¹œ¡Ùñğœœ¤¹É•Á±…” ¼ˆ½œ°œˆˆœ¤¬œˆœ¤¹©½¥¸ œ°œ¤¬q¸œíô¤ì(€ÍØ¬ôqq¹%1e}1=Mqq¸œì(€ÍØ¬ô…Ñ”±µ½Õ¹Ğ±…Ñ•½Éä±9½Ñ•qq¸œì(€‘…¥±å1½Ì¹™½É… ¡”ôùíÍØ¬õm”¹‘…Ñ”±”¹…µ½Õ¹Ğ±”¹…Ñ•½Éä±”¹¹½Ñ•t¹µ…À¡Øôøœˆœ­MÑÉ¥¹œ¡Ùñğœœ¤¹É•Á±…” ¼ˆ½œ°œˆˆœ¤¬œˆœ¤¹©½¥¸ œ°œ¤¬œ\n';});
+  csv+='\nSUMMARY\\n';
   const a=expenses.filter(e=>e.status!=='cancelled');
   let tm=0,sm=0,bm=0,pm=0;
   a.forEach(e=>{let m=e.amount;if(e.cycle==='quarterly')m=e.amount/3;else if(e.cycle==='yearly')m=e.amount/12;else if(e.cycle==='onetime')m=0;tm+=m;if(e.type==='sub')sm+=m;else if(e.type==='bill')bm+=m;else pm+=m;});
-  csv+='Total Monthly Burn,â‚¹'+fmtR(tm)+'\n';
-  csv+='Subscriptions Monthly,â‚¹'+fmtR(sm)+'\n';
-  csv+='Bills Monthly,â‚¹'+fmtR(bm)+'\n';
-  csv+='Personal Monthly,â‚¹'+fmtR(pm)+'\n';
-  csv+='Yearly Estimate,â‚¹'+fmtR(tm*12)+'\n';
-  csv+='Total Expenses,'+expenses.length+'\n';
-  csv+='Total Payments,'+payments.length+'\n';
-  csv+='Total Paid Amount,â‚¹'+fmtR(payments.reduce((s,p)=>s+p.amount,0))+'\n';
-  csv+='Daily Logs Total,â‚¹'+fmtR(dailyLogs.reduce((s,e)=>s+e.amount,0))+'\n';
+  csv+='Total Monthly Burn,â‚¹'+fmtR(tm)+'\\n';
+  csv+='Subscriptions Monthly,â‚¹'+fmtR(sm)+'\\n';
+  csv+='Bills Monthly,â‚¹'+fmtR(bm)+'\\n';
+  csv+='Personal Monthly,â‚¹'+fmtR(pm)+'\\n';
+  csv+='Yearly Estimate,â‚¹'+fmtR(tm*12)+'\\n';
+  csv+='Total Expenses,'+expenses.length+'\\n';
+  csv+='Total Payments,'+payments.length+'\\n';
+  csv+='Total Paid Amount,â‚¹'+fmtR(payments.reduce((s,p)=>s+p.amount,0))+'\\n';
+  csv+='Daily Logs Total,â‚¹'+fmtR(dailyLogs.reduce((s,e)=>s+e.amount,0))+'\\n';
   downloadFile(csv,'toka-export-'+new Date().toISOString().split('T')[0]+'.csv','text/csv');
   showToast('CSV downloaded');
 }
 function exportJSON(){
-  if(expenses.length===0&&payments.length===0&&dailyLogs.length===0){showToast('No data to export');return;}
+  if(expenses.length===0&&payments.lengt===0&&dailyLogs.length===0){showToast('No data to export');return;}
   const data={exportedAt:new Date().toISOString(),app:'Toka',version:'1.1',expenses:expenses,payments:payments,dailyLogs:dailyLogs,ratings:ratings,settings:settings};
   downloadFile(JSON.stringify(data,null,2),'toka-backup-'+new Date().toISOString().split('T')[0]+'.json','application/json');
   showToast('JSON downloaded');
